@@ -39,7 +39,13 @@ final class TestKernel extends Kernel
             'translator' => ['enabled' => true, 'fallbacks' => ['en']],
         ]);
 
+        // The "conflict_event" environment turns the option on, the default one keeps the default configuration.
+        if ('conflict_event' === $this->environment) {
+            $container->extension('form_concurrency', ['conflict_event' => true]);
+        }
+
         // Nothing in this kernel injects the form factory, so the container would otherwise remove it.
         $container->services()->alias('test.form.factory', 'form.factory')->public();
+        $container->services()->alias('test.event_dispatcher', 'event_dispatcher')->public();
     }
 }

@@ -6,6 +6,7 @@ namespace LockForm\FormConcurrency;
 
 use LockForm\FormConcurrency\Type\ConcurrencyTypeExtension;
 use Symfony\Component\Form\AbstractExtension;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
@@ -19,11 +20,12 @@ final class FormConcurrencyExtension extends AbstractExtension
         private readonly string $secret,
         private readonly ?TranslatorInterface $translator = null,
         private readonly bool $defaultEnabled = true,
+        private readonly ?EventDispatcherInterface $dispatcher = null,
     ) {
     }
 
     protected function loadTypeExtensions(): array
     {
-        return [new ConcurrencyTypeExtension($this->secret, $this->translator, $this->defaultEnabled)];
+        return [new ConcurrencyTypeExtension($this->secret, $this->translator, $this->defaultEnabled, dispatcher: $this->dispatcher)];
     }
 }

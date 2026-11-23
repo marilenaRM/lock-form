@@ -13,6 +13,7 @@ use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\Form\FormView;
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 final class ConcurrencyTypeExtension extends AbstractTypeExtension
@@ -27,6 +28,7 @@ final class ConcurrencyTypeExtension extends AbstractTypeExtension
         private readonly ?TranslatorInterface $translator = null,
         private readonly bool $defaultEnabled = true,
         private readonly string $defaultFieldName = '_concurrency_token',
+        private readonly ?EventDispatcherInterface $dispatcher = null,
     ) {
     }
 
@@ -36,7 +38,7 @@ final class ConcurrencyTypeExtension extends AbstractTypeExtension
             return;
         }
 
-        $listener = new ConcurrencyTokenListener(self::fieldName($options), self::fieldName($options).'_acknowledged', $this->secret, $this->translator, self::TRANSLATION_DOMAIN);
+        $listener = new ConcurrencyTokenListener(self::fieldName($options), self::fieldName($options).'_acknowledged', $this->secret, $this->translator, self::TRANSLATION_DOMAIN, $this->dispatcher);
         $builder->setAttribute(self::LISTENER_ATTRIBUTE, $listener);
         $builder->addEventSubscriber($listener);
     }

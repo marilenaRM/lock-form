@@ -158,10 +158,23 @@ protected, except GET forms. Those are searches and filters: they change nothing
 through links (pagination, menus, bookmarks) that carry no token. You can turn it off for one form with the
 `concurrency_protection: false` option, or everywhere with `form_concurrency.enabled: false`.
 
+To find out how often conflicts happen, turn on `form_concurrency.conflict_event`. Every refused submission
+then dispatches a `ConcurrencyConflictEvent` carrying the form and the changed paths, in `POST_SUBMIT` once the
+errors are attached, so a listener sees the form exactly as the user will. It is off by default; when it is
+off, the listener does not even get the event dispatcher. One edit can produce several events: a conflict sent
+again without acknowledging it is refused again, and a LiveComponent submits the form on every re-render, so
+every keystroke during a conflict is a refused submission. Counting events would measure refused submissions,
+not conflicts. The event therefore carries `seenToken`, the token the user started from, which is the same for
+all of them. It is a fingerprint of the state the user saw, so it identifies neither the user nor the record:
+two people who opened the same version share it, and so do two records whose fields hold the same values. To
+count each conflict once, count distinct (session, URL, `seenToken`) triples. A submission without a token
+(`seenToken` null, no changed paths) is not a concurrent edit and should be counted apart. An acknowledged
+save is not a conflict and dispatches nothing.
+
 ## 4. What the tests cover
 
-`composer qa` passes: PHPStan at level 9 with no errors, and 135 green tests. To make sure the tests can
-actually fail, I disabled the detection by hand (`conflict = false`) and 17 tests failed. Moving the
+`composer qa` passes: PHPStan at level 9 with no errors, and 141 green tests. To make sure the tests can
+actually fail, I disabled the detection by hand (`conflict = false`) and 22 tests failed. Moving the
 `PRE_SUBMIT` priority to -1024 makes the dependent-field test fail.
 
 | Case | Test |
@@ -189,7 +202,8 @@ actually fail, I disabled the detection by hand (`conflict = false`) and 17 test
 | Token cannot be matched without the secret | `testTheTokenCannotBeMatchedWithoutTheSecret` |
 | Dependent field rebuilt in `PRE_SUBMIT` → no false conflict | `testAFieldRebuiltFromTheSubmittedValuesIsNotAConflict` |
 | Token round trip, and detection of a single changed field, over 50 generated forms (fixed seed, invalid UTF-8 included) | `FingerprintTest` |
-| Bundle: protection without touching the type, messages translated into French | `FormConcurrencyBundleTest` |
+| Conflict event: changed paths, dispatched once the errors are on the form, the same `seenToken` for every refusal of one edit, nothing for an acknowledged one | `ConcurrencyConflictEventTest` |
+| Bundle: protection without touching the type, messages translated into French, conflict event only when turned on | `FormConcurrencyBundleTest` |
 
 ## 5. Known limits
 
@@ -225,7 +239,6 @@ actually fail, I disabled the detection by hand (`conflict = false`) and 17 test
 
 ## 6. Next steps
 
-1. Try the prototype on a real dashboard form. Doctrine and `EntityType` are covered by the demo; a real form
-   will tell whether its own types and listeners hold up.
-2. Dispatch an event on every conflict, so that an application can count them before deciding on option A.
-3. If the need is confirmed, add the non-blocking presence indicator (option A) on top.
+1. Try the prototype on a real dashboard form, with `conflict_event` turned on to count the conflicts. Doctrine
+   and `EntityType` are covered by the demo; a real form will tell whether its own types and listeners hold up.
+2. If the figures confirm the need, add the non-blocking presence indicator (option A) on top.
