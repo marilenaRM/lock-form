@@ -1,0 +1,32 @@
+{% extends 'base.html.twig' %}
+
+{% block body_class %}frame frame-{{ as.value }}{% endblock %}
+
+{% block body %}
+<main>
+    <p class="editing-as">{{ 'demo.editing_as'|trans({'%user%': as.labelKey|trans}) }}
+        {% if not protection %}<span class="badge-off">{{ 'demo.protection.off'|trans }}</span>{% endif %}</p>
+
+    {{ form_start(form) }}
+        {{ form_errors(form) }}
+        {{ form_row(form.name) }}
+        {{ form_row(form.priceInCents) }}
+        {{ form_row(form.status) }}
+        {{ form_row(form.category) }}
+
+        <fieldset class="tags" data-tags data-prototype="{{ form_widget(form.tags.vars.prototype)|e('html_attr') }}" data-remove-label="{{ 'product.tags.remove'|trans }}" data-index="{{ form.tags|length > 0 ? form.tags|keys|last + 1 : 0 }}">
+            <legend>{{ form_label(form.tags) }}</legend>
+            {{ form_errors(form.tags) }}
+            <ul data-tags-list>
+                {% for tag in form.tags %}
+                    <li>{{ form_widget(tag) }} {{ form_errors(tag) }}<button type="button" class="button-link" data-tags-remove>{{ 'product.tags.remove'|trans }}</button></li>
+                {% endfor %}
+            </ul>
+            <button type="button" class="button-secondary" data-tags-add>{{ 'product.tags.add'|trans }}</button>
+            {% do form.tags.setRendered %}
+        </fieldset>
+
+        <button type="submit">{{ 'product.save'|trans }}</button>
+    {{ form_end(form) }}
+</main>
+{% endblock %}

@@ -1,0 +1,60 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+<header class="demo-header">
+    <h1>{{ 'demo.title'|trans }}</h1>
+    <p>{{ 'demo.intro'|trans }}</p>
+
+    <div class="demo-controls">
+        <nav class="toggle" aria-label="{{ 'demo.protection.label'|trans }}">
+            <a href="{{ path('demo', {protection: '1'}) }}" class="toggle-option{{ protection ? ' is-active' }}" {% if protection %}aria-current="page"{% endif %}>{{ 'demo.protection.on'|trans }}</a>
+            <a href="{{ path('demo', {protection: '0'}) }}" class="toggle-option{{ not protection ? ' is-active' }}" {% if not protection %}aria-current="page"{% endif %}>{{ 'demo.protection.off'|trans }}</a>
+        </nav>
+        <form method="post" action="{{ path('demo_reset', {protection: protection ? '1' : '0'}) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('demo_reset') }}">
+            <button type="submit" class="button-secondary">{{ 'demo.reset'|trans }}</button>
+        </form>
+        <a href="{{ path('product_list') }}">{{ 'demo.links.products'|trans }}</a>
+    </div>
+
+    <p class="protection-note {{ protection ? 'is-on' : 'is-off' }}">
+        {{ (protection ? 'demo.protection.enabled_note' : 'demo.protection.disabled_note')|trans }}
+    </p>
+</header>
+
+<main class="demo-grid">
+    {% for user in ['alice', 'bob'] %}
+        <section class="editor editor-{{ user }}" aria-labelledby="editor-{{ user }}-title">
+            <h2 id="editor-{{ user }}-title">{{ ('demo.user.' ~ user)|trans }}</h2>
+            <iframe name="{{ user }}" title="{{ ('demo.user.' ~ user)|trans }}" data-editor
+                    src="{{ path('product_edit', {id: product.id, as: user, protection: protection ? '1' : '0'}) }}"></iframe>
+            <p class="editor-links">
+                <a href="{{ path('product_edit', {id: product.id, as: user, protection: protection ? '1' : '0'}) }}" target="{{ user }}">{{ 'demo.links.reload'|trans }}</a>
+                <a href="{{ path('product_stock', {id: product.id, as: user}) }}" target="{{ user }}">{{ 'demo.links.stock'|trans }}</a>
+            </p>
+        </section>
+    {% endfor %}
+
+    <section class="steps" aria-labelledby="steps-title">
+        <h2 id="steps-title">{{ 'demo.steps.title'|trans }}</h2>
+        <ol>
+            <li>{{ 'demo.steps.1'|trans }}</li>
+            <li>{{ 'demo.steps.2'|trans }}</li>
+            <li>{{ 'demo.steps.3'|trans }}</li>
+            <li>{{ 'demo.steps.4'|trans }}</li>
+        </ol>
+        <h3>{{ 'demo.scenarios.title'|trans }}</h3>
+        <ul>
+            <li>{{ 'demo.scenarios.stock'|trans }}</li>
+            <li>{{ 'demo.scenarios.same_value'|trans }}</li>
+            <li>{{ 'demo.scenarios.tag'|trans }}</li>
+            <li>{{ 'demo.scenarios.filter'|trans }}</li>
+        </ul>
+    </section>
+
+    <section class="history" aria-labelledby="history-title">
+        <h2 id="history-title">{{ 'history.title'|trans }}</h2>
+        <iframe name="history" title="{{ 'history.title'|trans }}" data-history src="{{ path('product_history', {id: product.id}) }}"></iframe>
+    </section>
+</main>
+{% endblock %}

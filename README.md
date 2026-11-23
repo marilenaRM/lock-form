@@ -7,6 +7,11 @@ and no dependency on Doctrine.
 
 The reasoning, the options that were considered and the limits are in [docs/design.md](docs/design.md).
 
+![Two people editing the same record, without then with the protection](docs/demo.gif)
+
+To see it working, [`demo/`](demo/README.md) is a small back-office where two people edit the same product
+side by side: `cd demo && docker compose up --build`.
+
 ## Usage
 
 Enable the bundle:

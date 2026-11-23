@@ -1,0 +1,12 @@
+{
+    "name": "lock-form-demo-e2e",
+    "private": true,
+    "type": "module",
+    "description": "Plays the demo scenario in a real browser and records it",
+    "scripts": {
+        "record": "node record.mjs"
+    },
+    "devDependencies": {
+        "playwright": "1.65.1"
+    }
+}

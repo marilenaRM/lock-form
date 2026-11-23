@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xliff xmlns="urn:oasis:names:tc:xliff:document:1.2" version="1.2">
+    <file source-language="en" target-language="en" datatype="plaintext" original="file.ext">
+        <body>
+            <trans-unit id="demo.title">
+                <source>demo.title</source>
+                <target>Two people, one record</target>
+            </trans-unit>
+            <trans-unit id="demo.intro">
+                <source>demo.intro</source>
+                <target>Alice and Bob edit the same product at the same time. Follow the steps, with and without the protection, and watch the save history.</target>
+            </trans-unit>
+            <trans-unit id="demo.protection.label">
+                <source>demo.protection.label</source>
+                <target>Concurrent-edit protection</target>
+            </trans-unit>
+            <trans-unit id="demo.protection.on">
+                <source>demo.protection.on</source>
+                <target>Protection on</target>
+            </trans-unit>
+            <trans-unit id="demo.protection.off">
+                <source>demo.protection.off</source>
+                <target>Protection off</target>
+            </trans-unit>
+            <trans-unit id="demo.protection.enabled_note">
+                <source>demo.protection.enabled_note</source>
+                <target>Protection on: a save based on an outdated version is refused, and the changed fields show what is stored now.</target>
+            </trans-unit>
+            <trans-unit id="demo.protection.disabled_note">
+                <source>demo.protection.disabled_note</source>
+                <target>Protection off: the last one to save wins, silently.</target>
+            </trans-unit>
+            <trans-unit id="demo.reset">
+                <source>demo.reset</source>
+                <target>Reset the demo</target>
+            </trans-unit>
+            <trans-unit id="demo.empty">
+                <source>demo.empty</source>
+                <target>The demo database is empty.</target>
+            </trans-unit>
+            <trans-unit id="demo.user.alice">
+                <source>demo.user.alice</source>
+                <target>Alice</target>
+            </trans-unit>
+            <trans-unit id="demo.user.bob">
+                <source>demo.user.bob</source>
+                <target>Bob</target>
+            </trans-unit>
+            <trans-unit id="demo.editing_as">
+                <source>demo.editing_as</source>
+                <target>You are %user%.</target>
+            </trans-unit>
+            <trans-unit id="demo.links.products">
+                <source>demo.links.products</source>
+                <target>Product list (GET filter)</target>
+            </trans-unit>
+            <trans-unit id="demo.links.reload">
+                <source>demo.links.reload</source>
+                <target>Reload the product form</target>
+            </trans-unit>
+            <trans-unit id="demo.links.stock">
+                <source>demo.links.stock</source>
+                <target>Adjust the stock instead</target>
+            </trans-unit>
+            <trans-unit id="demo.links.back">
+                <source>demo.links.back</source>
+                <target>Back to the demo</target>
+            </trans-unit>
+            <trans-unit id="demo.steps.title">
+                <source>demo.steps.title</source>
+                <target>The scenario</target>
+            </trans-unit>
+            <trans-unit id="demo.steps.1">
+                <source>demo.steps.1</source>
+                <target>Both forms are open on the same version of the product.</target>
+            </trans-unit>
+            <trans-unit id="demo.steps.2">
+                <source>demo.steps.2</source>
+                <target>Bob changes the price and saves.</target>
+            </trans-unit>
+            <trans-unit id="demo.steps.3">
+                <source>demo.steps.3</source>
+                <target>Alice, who still sees the old price, changes the name and saves.</target>
+            </trans-unit>
+            <trans-unit id="demo.steps.4">
+                <source>demo.steps.4</source>
+                <target>Protection off: the history shows Alice putting the old price back without knowing it. Protection on: Alice is told the price changed and sees Bob’s value; her name is kept, and saving again is her decision.</target>
+            </trans-unit>
+            <trans-unit id="demo.scenarios.title">
+                <source>demo.scenarios.title</source>
+                <target>Also worth trying</target>
+            </trans-unit>
+            <trans-unit id="demo.scenarios.stock">
+                <source>demo.scenarios.stock</source>
+                <target>Bob adjusts the stock, then Alice saves: no conflict, her form does not show the stock.</target>
+            </trans-unit>
+            <trans-unit id="demo.scenarios.same_value">
+                <source>demo.scenarios.same_value</source>
+                <target>Bob saves without changing anything: Alice is not bothered.</target>
+            </trans-unit>
+            <trans-unit id="demo.scenarios.tag">
+                <source>demo.scenarios.tag</source>
+                <target>Bob adds a tag: Alice is told the tag list changed.</target>
+            </trans-unit>
+            <trans-unit id="demo.scenarios.filter">
+                <source>demo.scenarios.filter</source>
+                <target>The status filter of the product list is a GET form: it works from a plain link, without any token.</target>
+            </trans-unit>
+            <trans-unit id="product.field.name">
+                <source>product.field.name</source>
+                <target>Name</target>
+            </trans-unit>
+            <trans-unit id="product.field.priceInCents">
+                <source>product.field.priceInCents</source>
+                <target>Price</target>
+            </trans-unit>
+            <trans-unit id="product.field.price">
+                <source>product.field.price</source>
+                <target>Price</target>
+            </trans-unit>
+            <trans-unit id="product.field.status">
+                <source>product.field.status</source>
+                <target>Status</target>
+            </trans-unit>
+            <trans-unit id="product.field.category">
+                <source>product.field.category</source>
+                <target>Category</target>
+            </trans-unit>
+            <trans-unit id="product.field.tags">
+                <source>product.field.tags</source>
+                <target>Tags</target>
+            </trans-unit>
+            <trans-unit id="product.field.stock">
+                <source>product.field.stock</source>
+                <target>Stock</target>
+            </trans-unit>
+            <trans-unit id="product.status.draft">
+                <source>product.status.draft</source>
+                <target>Draft</target>
+            </trans-unit>
+            <trans-unit id="product.status.active">
+                <source>product.status.active</source>
+                <target>On sale</target>
+            </trans-unit>
+            <trans-unit id="product.status.archived">
+                <source>product.status.archived</source>
+                <target>Archived</target>
+            </trans-unit>
+            <trans-unit id="product.save">
+                <source>product.save</source>
+                <target>Save</target>
+            </trans-unit>
+            <trans-unit id="product.saved">
+                <source>product.saved</source>
+                <target>Saved.</target>
+            </trans-unit>
+            <trans-unit id="product.tags.add">
+                <source>product.tags.add</source>
+                <target>Add a tag</target>
+            </trans-unit>
+            <trans-unit id="product.tags.remove">
+                <source>product.tags.remove</source>
+                <target>Remove</target>
+            </trans-unit>
+            <trans-unit id="product.stock.title">
+                <source>product.stock.title</source>
+                <target>Stock of %name%</target>
+            </trans-unit>
+            <trans-unit id="product.list.title">
+                <source>product.list.title</source>
+                <target>Products</target>
+            </trans-unit>
+            <trans-unit id="product.list.empty">
+                <source>product.list.empty</source>
+                <target>No product matches.</target>
+            </trans-unit>
+            <trans-unit id="product.filter.all">
+                <source>product.filter.all</source>
+                <target>All</target>
+            </trans-unit>
+            <trans-unit id="product.filter.submit">
+                <source>product.filter.submit</source>
+                <target>Filter</target>
+            </trans-unit>
+            <trans-unit id="product.filter.hint">
+                <source>product.filter.hint</source>
+                <target>This filter is a GET form, so the protection leaves it alone:</target>
+            </trans-unit>
+            <trans-unit id="product.filter.link">
+                <source>product.filter.link</source>
+                <target>products on sale, from a plain link</target>
+            </trans-unit>
+            <trans-unit id="history.title">
+                <source>history.title</source>
+                <target>Save history</target>
+            </trans-unit>
+            <trans-unit id="history.empty">
+                <source>history.empty</source>
+                <target>Nothing saved yet.</target>
+            </trans-unit>
+            <trans-unit id="history.when">
+                <source>history.when</source>
+                <target>Time</target>
+            </trans-unit>
+            <trans-unit id="history.who">
+                <source>history.who</source>
+                <target>Who</target>
+            </trans-unit>
+            <trans-unit id="history.form">
+                <source>history.form</source>
+                <target>Form</target>
+            </trans-unit>
+            <trans-unit id="history.changes">
+                <source>history.changes</source>
+                <target>What changed</target>
+            </trans-unit>
+            <trans-unit id="history.form.product">
+                <source>history.form.product</source>
+                <target>Product</target>
+            </trans-unit>
+            <trans-unit id="history.form.stock">
+                <source>history.form.stock</source>
+                <target>Stock</target>
+            </trans-unit>
+        </body>
+    </file>
+</xliff>

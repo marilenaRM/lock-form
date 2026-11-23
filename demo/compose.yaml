@@ -1,0 +1,7 @@
+services:
+  demo:
+    build:
+      context: ..
+      dockerfile: demo/Dockerfile
+    ports:
+      - "127.0.0.1:${DEMO_PORT:-8080}:80"

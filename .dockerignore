@@ -1,0 +1,15 @@
+.git
+.claude
+.mcp.json
+vendor
+var
+.phpunit.cache
+.phpstan.cache
+demo/vendor
+demo/var
+demo/.env.local
+demo/node_modules
+demo/.phpunit.cache
+demo/.phpstan.cache
+demo/test-results
+demo/playwright-report
