@@ -21,6 +21,8 @@ final class Article
         public array $tags = [],
         public string $reviewedBy = '',
         public string $internalNotes = '',
+        public ?string $accessCode = null,
+        public bool $featured = false,
     ) {
     }
 

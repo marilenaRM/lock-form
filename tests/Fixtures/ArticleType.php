@@ -5,17 +5,19 @@ declare(strict_types=1);
 namespace LockForm\FormConcurrency\Tests\Fixtures;
 
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\CollectionType;
 use Symfony\Component\Form\Extension\Core\Type\DateType;
 use Symfony\Component\Form\Extension\Core\Type\NumberType;
+use Symfony\Component\Form\Extension\Core\Type\PasswordType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
 /**
  * Covers the field kinds whose display goes through a transformer: dates, numbers, related objects,
- * collections, an embedded form and a read-only field. Article::$internalNotes is deliberately absent.
+ * collections, an embedded form, a read-only field and a field that never renders its value. Article::$internalNotes is deliberately absent.
  */
 final class ArticleType extends AbstractType
 {
@@ -36,7 +38,9 @@ final class ArticleType extends AbstractType
                 'allow_add' => true,
                 'allow_delete' => true,
             ])
-            ->add('reviewedBy', TextType::class, ['disabled' => true]);
+            ->add('reviewedBy', TextType::class, ['disabled' => true])
+            ->add('accessCode', PasswordType::class, ['required' => false])
+            ->add('featured', CheckboxType::class, ['required' => false]);
     }
 
     public function configureOptions(OptionsResolver $resolver): void

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace LockForm\FormConcurrency\EventListener;
 
+use LockForm\FormConcurrency\DisplayedValue;
 use LockForm\FormConcurrency\Fingerprint;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\Form\FormError;
@@ -19,13 +20,20 @@ final class ConcurrencyTokenListener implements EventSubscriberInterface
 {
     public const string CONFLICT_MESSAGE = 'form_concurrency.conflict';
     public const string FIELD_CHANGED_MESSAGE = 'form_concurrency.field_changed';
+    public const string FIELD_CHANGED_TO_MESSAGE = 'form_concurrency.field_changed_to';
+    public const string FIELD_CLEARED_MESSAGE = 'form_concurrency.field_cleared';
+    public const string ENTRIES_CHANGED_MESSAGE = 'form_concurrency.entries_changed';
 
     private ?Fingerprint $current = null;
 
     private bool $conflict = false;
 
-    /** @var list<string> */
-    private array $changedPaths = [];
+    /**
+     * What each changed field displays now, keyed by path; null when it cannot be shown.
+     *
+     * @var array<string, ?string>
+     */
+    private array $currentValues = [];
 
     public function __construct(
         private readonly string $fieldName,
@@ -70,8 +78,9 @@ final class ConcurrencyTokenListener implements EventSubscriberInterface
         $token = \is_array($data) && \is_string($data[$this->fieldName] ?? null) ? $data[$this->fieldName] : null;
         $seen = null === $token ? null : Fingerprint::fromToken($token);
 
-        $this->changedPaths = null === $seen ? [] : $seen->changedPaths($this->current);
-        $this->conflict = null === $seen || [] !== $this->changedPaths;
+        $changedPaths = null === $seen ? [] : $seen->changedPaths($this->current);
+        $this->conflict = null === $seen || [] !== $changedPaths;
+        $this->currentValues = [] === $changedPaths ? [] : $this->displayedValues($form, $changedPaths);
 
         if (\is_array($data)) {
             unset($data[$this->fieldName]);
@@ -88,8 +97,22 @@ final class ConcurrencyTokenListener implements EventSubscriberInterface
 
         $form->addError($this->error(self::CONFLICT_MESSAGE));
 
-        foreach ($this->changedPaths as $path) {
-            $this->find($form, $path)?->addError($this->error(self::FIELD_CHANGED_MESSAGE));
+        $reported = [];
+        foreach ($this->currentValues as $path => $value) {
+            [$field, $exact] = $this->closest($form, $path);
+            if ($field->isRoot() || \in_array($field, $reported, true)) {
+                continue;
+            }
+            $reported[] = $field;
+
+            $field->addError(match (true) {
+                // An entry added or removed meanwhile is not in the submitted collection, so the collection carries
+                // the error. A collection bubbles its errors up by default, hence a message that names it.
+                !$exact => $this->error(self::ENTRIES_CHANGED_MESSAGE, ['{{ field }}' => $this->labelOf($field)]),
+                null === $value => $this->error(self::FIELD_CHANGED_MESSAGE),
+                '' === $value => $this->error(self::FIELD_CLEARED_MESSAGE),
+                default => $this->error(self::FIELD_CHANGED_TO_MESSAGE, ['{{ value }}' => $value]),
+            });
         }
     }
 
@@ -115,20 +138,69 @@ final class ConcurrencyTokenListener implements EventSubscriberInterface
         return self::appliesTo($form->isRoot(), $form->getConfig()->getCompound(), $form->getConfig()->getMethod());
     }
 
-    private function find(FormInterface $form, string $path): ?FormInterface
+    /**
+     * Read before the fields are submitted, while the form still holds the stored state. Only runs on a
+     * conflict: it renders the whole form, so that labels and translation domains resolve as on screen.
+     *
+     * @param list<string> $paths
+     *
+     * @return array<string, ?string>
+     */
+    private function displayedValues(FormInterface $form, array $paths): array
+    {
+        $view = $form->createView();
+
+        $values = [];
+        foreach ($paths as $path) {
+            [$field, $exact] = $this->closest($form, $path);
+            $fieldView = $view;
+            foreach ($exact ? explode('.', $path) : [] as $name) {
+                $fieldView = $fieldView->children[$name] ?? null;
+                if (null === $fieldView) {
+                    break;
+                }
+            }
+
+            $values[$path] = $exact && null !== $fieldView ? DisplayedValue::of($field, $fieldView, $this->translator) : null;
+        }
+
+        return $values;
+    }
+
+    /**
+     * @return array{FormInterface, bool} the field at $path, or its deepest existing ancestor, and whether it is exact
+     */
+    private function closest(FormInterface $form, string $path): array
     {
         foreach (explode('.', $path) as $name) {
             if (!$form->has($name)) {
-                return null;
+                return [$form, false];
             }
             $form = $form->get($name);
         }
 
-        return $form;
+        return [$form, true];
     }
 
-    private function error(string $key): FormError
+    private function labelOf(FormInterface $field): string
     {
-        return new FormError($this->translator?->trans($key, [], $this->translationDomain) ?? $key, $key);
+        $config = $field->getConfig();
+        $label = $config->getOption('label');
+        if (!\is_string($label) || '' === $label) {
+            // Same fallback as the label Twig renders (FormRenderer::humanize(), an instance method).
+            return ucfirst(strtolower(trim((string) preg_replace(['/([A-Z])/', '/[_\s]+/'], ['_$1', ' '], $field->getName()))));
+        }
+
+        $domain = $config->getOption('translation_domain');
+
+        return null === $this->translator || false === $domain ? $label : $this->translator->trans($label, [], \is_string($domain) ? $domain : null);
+    }
+
+    /**
+     * @param array<string, string> $parameters
+     */
+    private function error(string $key, array $parameters = []): FormError
+    {
+        return new FormError($this->translator?->trans($key, $parameters, $this->translationDomain) ?? strtr($key, $parameters), $key, $parameters);
     }
 }

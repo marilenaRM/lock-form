@@ -20,7 +20,7 @@ return [
 ```
 
 Every root form is now protected, except GET forms (searches, filters). On a conflict the form is invalid, with a global error and an error on
-each field that changed meanwhile. Rendering it again carries a fresh token: submitting it again keeps the
+each field that changed meanwhile, showing what it holds now. Rendering it again carries a fresh token: submitting it again keeps the
 user's values.
 
 The controller must load the record on every request, which a regular edit action already does:
