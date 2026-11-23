@@ -64,6 +64,58 @@ Options:
 | form | `concurrency_field_name` | `_concurrency_token` |
 | `config/packages/form_concurrency.yaml` | `enabled` | `true` |
 | `config/packages/form_concurrency.yaml` | `field_name` | `_concurrency_token` |
+| `config/packages/form_concurrency.yaml` | `conflict_event` | `false` |
+
+To count conflicts, for instance before deciding whether a presence indicator is worth it, turn on
+`conflict_event`. Each refused submission then dispatches a `ConcurrencyConflictEvent`, once the errors are on
+the form:
+
+```yaml
+# config/packages/form_concurrency.yaml
+form_concurrency:
+    conflict_event: true
+```
+
+```php
+use LockForm\FormConcurrency\Event\ConcurrencyConflictEvent;
+use Psr\Log\LoggerInterface;
+use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
+use Symfony\Component\HttpFoundation\RequestStack;
+
+#[AsEventListener]
+final class CountConcurrencyConflicts
+{
+    public function __construct(
+        private readonly LoggerInterface $logger,
+        private readonly RequestStack $requestStack,
+    ) {
+    }
+
+    public function __invoke(ConcurrencyConflictEvent $event): void
+    {
+        $request = $this->requestStack->getMainRequest();
+
+        $this->logger->info('Concurrent edit on {form}', [
+            'form' => $event->form->getName(),
+            'fields' => $event->changedPaths,
+            // The same for every refusal of one edit: count distinct values to count each conflict once.
+            // No token at all is not a concurrent edit (an API client, a page cached before the deployment).
+            'edit' => null === $event->seenToken ? null : hash('xxh3', implode("\0", [
+                $request?->getSession()->getId(),
+                $request?->getPathInfo(),
+                $event->seenToken,
+            ])),
+        ]);
+    }
+}
+```
+
+`changedPaths` lists the property paths changed meanwhile (`price`, `author.email`); it is empty when the
+submission carried no usable token. The same edit can be refused several times: sent again without
+acknowledging the conflict, or re-rendered by a LiveComponent, which submits the form on every change.
+`seenToken`, the token the user started from, is the same for all of them. It identifies the state the user
+saw, not the user nor the record: two people who opened the same version get the same token, hence the
+session and the URL in the key above. An acknowledged save is not a conflict and dispatches nothing.
 
 Messages use the `form_concurrency` translation domain (English and French provided).
 
@@ -74,6 +126,8 @@ $factory = Forms::createFormFactoryBuilder()
     ->addExtension(new FormConcurrencyExtension($secret, $translator))
     ->getFormFactory();
 ```
+
+Pass `dispatcher: $eventDispatcher` to `FormConcurrencyExtension` to get the conflict event there too.
 
 ## Development
 

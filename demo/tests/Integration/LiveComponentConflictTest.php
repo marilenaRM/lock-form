@@ -36,6 +36,7 @@ final class LiveComponentConflictTest extends WebTestCase
         $reset = self::getContainer()->get(DemoReset::class);
         \assert($reset instanceof DemoReset);
         $reset();
+        ConflictEventRecorder::reset();
     }
 
     public function testAConflictDetectedWhileTypingIsStillReportedOnSave(): void
@@ -52,6 +53,24 @@ final class LiveComponentConflictTest extends WebTestCase
 
         $this->assertSaveIsRefused($alice);
         self::assertSame(['Clavier mécanique', 9900], $this->storedNameAndPrice(), 'Bob’s price is kept');
+    }
+
+    public function testEveryRefusalOfTheSameEditCarriesTheSameSeenToken(): void
+    {
+        $alice = $this->openLiveForm($this->alice, DemoUser::Alice);
+        $bob = $this->openLiveForm($this->bob, DemoUser::Bob);
+        $bob->set('product.priceInCents', '99,00');
+        $bob->call('save');
+
+        $alice->set('product.name', 'Clavier');
+        $alice->set('product.name', 'Clavier mécanique sans fil');
+        $this->assertSaveIsRefused($alice);
+
+        // Each keystroke re-renders the component, which submits the form: every one of them is a refused submission.
+        $seenTokens = ConflictEventRecorder::seenTokens();
+        self::assertGreaterThanOrEqual(3, \count($seenTokens));
+        self::assertCount(1, array_unique($seenTokens), 'one conflict');
+        self::assertNotContains(null, $seenTokens);
     }
 
     public function testAConflictIsReportedWhenSavingWithoutTypingFirst(): void

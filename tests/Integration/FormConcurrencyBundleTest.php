@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace LockForm\FormConcurrency\Tests\Integration;
 
+use LockForm\FormConcurrency\Event\ConcurrencyConflictEvent;
 use LockForm\FormConcurrency\Tests\Fixtures\Article;
 use LockForm\FormConcurrency\Tests\Fixtures\ArticleType;
 use LockForm\FormConcurrency\Tests\Fixtures\Author;
 use LockForm\FormConcurrency\Tests\Fixtures\FormRoundTrip;
+use PHPUnit\Framework\Attributes\TestWith;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\FormInterface;
@@ -35,6 +38,27 @@ final class FormConcurrencyBundleTest extends KernelTestCase
         self::assertFalse($form->isValid());
         self::assertStringStartsWith('Quelqu’un d’autre a enregistré cette fiche', self::messagesOf($form)[0] ?? '');
         self::assertSame(['Modifié par quelqu’un d’autre depuis l’ouverture du formulaire. Valeur actuelle : Saved by someone else'], self::messagesOf($form->get('title')));
+    }
+
+    #[TestWith(['test', 0])]
+    #[TestWith(['conflict_event', 1])]
+    public function testTheConflictEventIsOnlyDispatchedWhenTurnedOn(string $environment, int $expected): void
+    {
+        self::bootKernel(['environment' => $environment]);
+        $dispatcher = self::getContainer()->get('test.event_dispatcher');
+        \assert($dispatcher instanceof EventDispatcherInterface);
+        $dispatched = 0;
+        $dispatcher->addListener(ConcurrencyConflictEvent::class, static function () use (&$dispatched): void {
+            ++$dispatched;
+        });
+
+        $payload = FormRoundTrip::payloadOf($this->formFactory()->create(ArticleType::class, self::article()));
+        unset($payload['_concurrency_token']);
+        $form = $this->formFactory()->create(ArticleType::class, self::article());
+        $form->submit($payload);
+
+        self::assertFalse($form->isValid());
+        self::assertSame($expected, $dispatched);
     }
 
     /**
