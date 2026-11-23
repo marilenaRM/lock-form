@@ -1,0 +1,84 @@
+<?php
+
+declare(strict_types=1);
+
+namespace LockForm\FormConcurrency\Type;
+
+use LockForm\FormConcurrency\EventListener\ConcurrencyTokenListener;
+use Symfony\Component\Form\AbstractTypeExtension;
+use Symfony\Component\Form\Extension\Core\Type\FormType;
+use Symfony\Component\Form\Extension\Core\Type\HiddenType;
+use Symfony\Component\Form\FormBuilderInterface;
+use Symfony\Component\Form\FormInterface;
+use Symfony\Component\Form\FormView;
+use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\Contracts\Translation\TranslatorInterface;
+
+final class ConcurrencyTypeExtension extends AbstractTypeExtension
+{
+    public const string TRANSLATION_DOMAIN = 'form_concurrency';
+
+    private const string LISTENER_ATTRIBUTE = 'concurrency_token_listener';
+
+    public function __construct(
+        #[\SensitiveParameter]
+        private readonly string $secret,
+        private readonly ?TranslatorInterface $translator = null,
+        private readonly bool $defaultEnabled = true,
+        private readonly string $defaultFieldName = '_concurrency_token',
+    ) {
+    }
+
+    public function buildForm(FormBuilderInterface $builder, array $options): void
+    {
+        if (!$options['concurrency_protection']) {
+            return;
+        }
+
+        $listener = new ConcurrencyTokenListener(self::fieldName($options), $this->secret, $this->translator, self::TRANSLATION_DOMAIN);
+        $builder->setAttribute(self::LISTENER_ATTRIBUTE, $listener);
+        $builder->addEventSubscriber($listener);
+    }
+
+    public function finishView(FormView $view, FormInterface $form, array $options): void
+    {
+        if (!$options['concurrency_protection'] || !ConcurrencyTokenListener::appliesTo(null === $view->parent, true === $options['compound'], $form->getConfig()->getMethod())) {
+            return;
+        }
+
+        $listener = $form->getConfig()->getAttribute(self::LISTENER_ATTRIBUTE);
+        \assert($listener instanceof ConcurrencyTokenListener);
+
+        $fieldName = self::fieldName($options);
+        $field = $form->getConfig()->getFormFactory()->createNamed($fieldName, HiddenType::class, $listener->token(), [
+            'block_prefix' => 'concurrency_token',
+            'mapped' => false,
+        ]);
+
+        $view->children[$fieldName] = $field->createView($view);
+    }
+
+    public function configureOptions(OptionsResolver $resolver): void
+    {
+        $resolver->setDefaults([
+            'concurrency_protection' => $this->defaultEnabled,
+            'concurrency_field_name' => $this->defaultFieldName,
+        ]);
+
+        $resolver->setAllowedTypes('concurrency_protection', 'bool');
+        $resolver->setAllowedTypes('concurrency_field_name', 'string');
+    }
+
+    public static function getExtendedTypes(): iterable
+    {
+        return [FormType::class];
+    }
+
+    /**
+     * @param array<string, mixed> $options
+     */
+    private static function fieldName(array $options): string
+    {
+        return \is_string($options['concurrency_field_name']) ? $options['concurrency_field_name'] : throw new \LogicException('The "concurrency_field_name" option must be a string.');
+    }
+}

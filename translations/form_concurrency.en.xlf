@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xliff xmlns="urn:oasis:names:tc:xliff:document:1.2" version="1.2">
+    <file source-language="en" target-language="en" datatype="plaintext" original="file.ext">
+        <body>
+            <trans-unit id="form_concurrency.conflict">
+                <source>form_concurrency.conflict</source>
+                <target>Someone else saved this record while you were editing it. The fields marked below were changed: review them, then submit again to keep your values.</target>
+            </trans-unit>
+            <trans-unit id="form_concurrency.field_changed">
+                <source>form_concurrency.field_changed</source>
+                <target>Changed by someone else since you opened the form.</target>
+            </trans-unit>
+        </body>
+    </file>
+</xliff>
