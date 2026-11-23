@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace LockForm\FormConcurrency\EventListener;
 
 use LockForm\FormConcurrency\DisplayedValue;
+use LockForm\FormConcurrency\Event\ConcurrencyConflictEvent;
 use LockForm\FormConcurrency\Fingerprint;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormEvent;
 use Symfony\Component\Form\FormEvents;
 use Symfony\Component\Form\FormInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
@@ -33,6 +35,9 @@ final class ConcurrencyTokenListener implements EventSubscriberInterface
     /** The token the submission was based on, sent back as is while the conflict is not acknowledged. */
     private ?string $seenToken = null;
 
+    /** @var list<string> */
+    private array $changedPaths = [];
+
     /**
      * What each changed field displays now, keyed by path; null when it cannot be shown.
      *
@@ -47,6 +52,7 @@ final class ConcurrencyTokenListener implements EventSubscriberInterface
         private readonly string $secret,
         private readonly ?TranslatorInterface $translator = null,
         private readonly ?string $translationDomain = null,
+        private readonly ?EventDispatcherInterface $dispatcher = null,
     ) {
     }
 
@@ -89,9 +95,9 @@ final class ConcurrencyTokenListener implements EventSubscriberInterface
         $acknowledgement = self::stringAt($data, $this->acknowledgementFieldName);
         $acknowledged = null !== $acknowledgement && hash_equals($this->current->toToken(), $acknowledgement);
 
-        $changedPaths = null === $seen ? [] : $seen->changedPaths($this->current);
-        $this->conflict = !$acknowledged && (null === $seen || [] !== $changedPaths);
-        $this->currentValues = $this->conflict && [] !== $changedPaths ? $this->displayedValues($form, $changedPaths) : [];
+        $this->changedPaths = null === $seen ? [] : $seen->changedPaths($this->current);
+        $this->conflict = !$acknowledged && (null === $seen || [] !== $this->changedPaths);
+        $this->currentValues = $this->conflict && [] !== $this->changedPaths ? $this->displayedValues($form, $this->changedPaths) : [];
 
         if (\is_array($data)) {
             unset($data[$this->fieldName], $data[$this->acknowledgementFieldName]);
@@ -125,6 +131,8 @@ final class ConcurrencyTokenListener implements EventSubscriberInterface
                 default => $this->error(self::FIELD_CHANGED_TO_MESSAGE, ['{{ value }}' => $value]),
             });
         }
+
+        $this->dispatcher?->dispatch(new ConcurrencyConflictEvent($form, $this->changedPaths, $this->seenToken));
     }
 
     /**

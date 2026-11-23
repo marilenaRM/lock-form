@@ -983,6 +983,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  * @psalm-type FormConcurrencyConfig = array{
  *     enabled?: bool|Param, // Default: true
  *     field_name?: scalar|Param|null, // Default: "_concurrency_token"
+ *     conflict_event?: bool|Param, // Dispatch a ConcurrencyConflictEvent on every conflict. // Default: false
  * }
  * @psalm-type ConfigType = array{
  *     imports?: ImportsConfig,

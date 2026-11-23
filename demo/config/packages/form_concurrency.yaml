@@ -1,0 +1,7 @@
+form_concurrency:
+    conflict_event: true
+
+when@test:
+    services:
+        App\Tests\Integration\ConflictEventRecorder:
+            tags: [kernel.event_listener]

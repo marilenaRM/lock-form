@@ -20,17 +20,24 @@ final class FormConcurrencyBundle extends AbstractBundle
             ->children()
                 ->booleanNode('enabled')->defaultTrue()->end()
                 ->scalarNode('field_name')->defaultValue('_concurrency_token')->cannotBeEmpty()->end()
+                ->booleanNode('conflict_event')->defaultFalse()->info('Dispatch a ConcurrencyConflictEvent on every conflict.')->end()
             ->end();
     }
 
     /**
-     * @param array{enabled: bool, field_name: string} $config
+     * @param array{enabled: bool, field_name: string, conflict_event: bool} $config
      */
     public function loadExtension(array $config, ContainerConfigurator $container, ContainerBuilder $builder): void
     {
         $container->services()
             ->set(ConcurrencyTypeExtension::class)
-                ->args(['%kernel.secret%', service('translator')->nullOnInvalid(), $config['enabled'], $config['field_name']])
+                ->args([
+                    '%kernel.secret%',
+                    service('translator')->nullOnInvalid(),
+                    $config['enabled'],
+                    $config['field_name'],
+                    $config['conflict_event'] ? service('event_dispatcher') : null,
+                ])
                 ->tag('form.type_extension');
     }
 }
