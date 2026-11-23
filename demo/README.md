@@ -48,6 +48,8 @@ Also worth trying:
 
 - **Bob adjusts the stock** ("Adjust the stock instead"), then Alice saves: no conflict, since her form does
   not show the stock.
+- **Alice takes Bob's price**: once refused, she types in his price and saves again. Nothing is overwritten,
+  so the save goes through without ticking the box.
 - **Bob saves without changing anything**: Alice is not bothered.
 - **Bob adds a tag**: Alice is told the tag list changed.
 - **The product list** has a GET filter: it works from a plain link, with no token.

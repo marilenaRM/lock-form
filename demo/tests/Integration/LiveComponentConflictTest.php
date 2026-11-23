@@ -84,6 +84,36 @@ final class LiveComponentConflictTest extends WebTestCase
         self::assertSame(['Clavier mécanique sans fil', 8990], $this->storedNameAndPrice());
     }
 
+    public function testAliceCanSaveWithoutAcknowledgingOnceSheTakesBobPrice(): void
+    {
+        $alice = $this->openLiveForm($this->alice, DemoUser::Alice);
+        $bob = $this->openLiveForm($this->bob, DemoUser::Bob);
+        $bob->set('product.priceInCents', '99,00');
+        $bob->call('save');
+
+        $alice->set('product.name', 'Clavier mécanique sans fil');
+        $alice->set('product.priceInCents', '99,00');
+        $alice->call('save');
+
+        self::assertTrue($alice->response()->isRedirection());
+        self::assertSame(['Clavier mécanique sans fil', 9900], $this->storedNameAndPrice());
+    }
+
+    public function testAPriceTypedAfterTakingBobPriceIsStillAConflict(): void
+    {
+        $alice = $this->openLiveForm($this->alice, DemoUser::Alice);
+        $bob = $this->openLiveForm($this->bob, DemoUser::Bob);
+        $bob->set('product.priceInCents', '99,00');
+        $bob->call('save');
+
+        // Each change re-renders the component: passing through Bob's price must not settle the conflict.
+        $alice->set('product.priceInCents', '99,00');
+        $alice->set('product.priceInCents', '95,00');
+
+        $this->assertSaveIsRefused($alice);
+        self::assertSame(['Clavier mécanique', 9900], $this->storedNameAndPrice());
+    }
+
     public function testTagsAddedAndRemovedByAliceAreSavedWithoutConflict(): void
     {
         $alice = $this->openLiveForm($this->alice, DemoUser::Alice);

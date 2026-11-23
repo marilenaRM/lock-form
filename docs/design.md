@@ -95,7 +95,9 @@ GET  /article/42/edit                       POST /article/42/edit
                                                    received F1 ≠ F2? → conflict, changed paths
                                                  fields receive the submitted values
                                                  POST_SUBMIT (root)
-                                                   global error + an error on each changed field
+                                                   drop the changed paths already submitted
+                                                   with their current value
+                                                   global error + an error on each one left
 ```
 
 | Event | Priority | Why |
@@ -126,6 +128,21 @@ only gets the plain `form_concurrency.field_changed` message: the conflict must 
 itself hides. Checkboxes and radios get it too, since their rendered value is not what the user sees. An entry added to or removed from a collection meanwhile is not in the submitted collection,
 so the collection itself carries the error, with `form_concurrency.entries_changed`. That message names the
 field (`{{ field }}`), because a collection bubbles its errors up to the top of the form by default.
+
+A field that changed meanwhile is not a conflict when the user submits the value it holds now: saving it overwrites
+nothing. That is the user who reads "Current value: 99.00" in the error, types 99.00 in the field and saves again;
+if no other field is in conflict, the save goes through without the acknowledgement box. The comparison is made in
+`POST_SUBMIT`, once the fields have received the submitted values, against the fingerprint of the stored state taken in
+`PRE_SUBMIT`. The view data of a submitted field is the raw string the browser sent, so each field's normalized data is
+first put back through its own view transformers (`Fingerprint::ofSubmittedForm()`): `15` and ` 15.00 ` then match the
+`15.00` a fresh load would display, `2` matches the related object whose id is 2, and a trimmed text matches its stored
+value. A value that fails to transform never matches. The same rule covers collections: an entry added by someone
+else, that the user added too with the same value, is not a conflict either.
+
+That decision only holds for the submission it was made on. The token rendered afterwards stays the one the user
+started from, so the next submission is compared again. This matters for a LiveComponent, which submits on every
+change: a user who types through the other person's value ("9", "99,00", then "95,00") would otherwise have settled the
+conflict on the way and overwritten the change with the last value without a word.
 
 The form shown again keeps what the user typed, and it also gets a checkbox: "I have reviewed these changes:
 save my values anyway". Submitting the form again without ticking it is still a conflict, because the token
@@ -160,7 +177,7 @@ through links (pagination, menus, bookmarks) that carry no token. You can turn i
 
 ## 4. What the tests cover
 
-`composer qa` passes: PHPStan at level 9 with no errors, and 135 green tests. To make sure the tests can
+`composer qa` passes: PHPStan at level 9 with no errors, and 144 green tests. To make sure the tests can
 actually fail, I disabled the detection by hand (`conflict = false`) and 17 tests failed. Moving the
 `PRE_SUBMIT` priority to -1024 makes the dependent-field test fail.
 
@@ -178,6 +195,10 @@ actually fail, I disabled the detection by hand (`conflict = false`) and 17 test
 | `CollectionType`: entries added and removed by the user → no conflict | `testEntriesAddedOrRemovedByTheUserInACollectionAreNotAConflict` |
 | `CollectionType`: entry added by someone else → conflict, reported on the collection | `testAnEntryAddedConcurrentlyToACollectionIsAConflict` |
 | Sending back the form rendered after a conflict, as is → still a conflict (what a LiveComponent does on every re-render) | `testSubmittingTheFormRenderedAfterAConflictAgainIsStillAConflict` |
+| A field changed meanwhile, submitted with its current value (as displayed, formatted differently, trimmed, a related object, a checkbox, a collection entry) → accepted without acknowledgement | `testAFieldChangedMeanwhileIsNotAConflictWhenTheUserSubmitsItsNewValue` |
+| Two fields changed, the user took the value of one → conflict reported on the other one only | `testOnlyTheFieldsWhoseNewValueTheUserDidNotSubmitAreAConflict` |
+| Partial submission (`PATCH`) without a field changed meanwhile → accepted, the other person's value is kept | `testAPartialSubmissionWithoutAFieldChangedMeanwhileIsNotAConflict` |
+| A value typed after a submission that overwrote nothing (LiveComponent re-render) → conflict again | `testAValueTypedAfterASubmissionThatOverwroteNothingIsStillAConflict` |
 | The acknowledgement box appears only with a conflict, unticked | `testTheAcknowledgementBoxIsOnlyRenderedWithAConflict` |
 | Ticking it → accepted, the user's values are kept | `testAcknowledgingTheConflictSavesTheUserValues` |
 | An acknowledgement only covers the state it was shown for → a later change is a new conflict | `testAnAcknowledgementOnlyCoversTheStateItWasGivenFor` |
@@ -210,9 +231,8 @@ actually fail, I disabled the detection by hand (`conflict = false`) and 17 test
   That is nothing for a back-office form, but worth watching for a collection with hundreds of entries.
 - **Fields whose view data is an object** (`FileType`) are ignored.
 - **Partial submissions** (`$form->submit($data, false)`, typically a `PATCH`): a field missing from the
-  payload is not overwritten, yet a concurrent change to it is still reported. We cannot safely leave it
-  out, because the event does not expose `clearMissing`, and an unchecked checkbox is missing from the
-  payload too even though it does overwrite the value. Turn the option off for those cases.
+  payload keeps its stored value, so a concurrent change to it is not a conflict, since nothing overwrites it.
+  The client still has to send the token, see below.
 - **Clients that never render the form** (APIs, functional tests that submit an array) have to send the
   token back or turn the option off, exactly as with CSRF.
 - **In a LiveComponent, the conflict shows up on save, not while typing.** The component does detect it on the

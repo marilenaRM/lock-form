@@ -98,6 +98,10 @@
                 <source>demo.scenarios.same_value</source>
                 <target>Bob enregistre sans rien changer : Alice n’est pas dérangée.</target>
             </trans-unit>
+            <trans-unit id="demo.scenarios.take_value">
+                <source>demo.scenarios.take_value</source>
+                <target>Alice, refusée, recopie le prix de Bob et enregistre : rien n’est écrasé, elle n’a pas besoin de cocher la case.</target>
+            </trans-unit>
             <trans-unit id="demo.scenarios.tag">
                 <source>demo.scenarios.tag</source>
                 <target>Bob ajoute un tag : Alice est prévenue que la liste des tags a changé.</target>

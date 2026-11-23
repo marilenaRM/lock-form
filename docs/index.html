@@ -424,7 +424,7 @@ pre.flow{font-size:0.78rem; line-height:1.7}
         <span class="formcard__title">POST /product/1/edit · Alice</span>
       </div>
       <div class="formcard__body">
-        <div class="alert">Someone else saved this record while you were editing it. The fields marked below were changed: review them, then tick the confirmation box to save your values anyway.</div>
+        <div class="alert">Someone else saved this record while you were editing it. The fields marked below were changed: take their current value, or tick the confirmation box to save your values anyway.</div>
         <div class="fld">
           <label>Name</label>
           <div class="inp">Mechanical keyboard, US layout</div>
@@ -524,7 +524,8 @@ POST /article/42/edit
     F2 = fingerprint of what is stored now
     F1 = F2 ? <span class="g">accept</span> : <span class="r">conflict, changed paths</span>
   <span class="y">POST_SUBMIT</span>
-    global error + one error per changed field</pre>
+    drop the paths whose submitted value is already F2’s
+    none left ? <span class="g">accept</span> : global error + one error per field left</pre>
       </div>
       <div class="reveal stack">
         <div>
@@ -541,6 +542,7 @@ POST /article/42/edit
         <div class="prose">
           <p>Keeping the paths is what lets the form say <em>which</em> fields changed. The key doesn’t prevent tampering; its job is to stop anyone from brute-forcing a value the form never shows, such as a <code>PasswordType</code> (the code review of the prototype caught that one).</p>
           <p>The acknowledgement box carries the token of the state the user was shown. Sending the same form again is still a conflict, and if someone saves in between, a new conflict comes with a new box.</p>
+          <p>A user who types in the value a field holds now overwrites nothing, so that field is no longer a conflict, and the save goes through if no other field is. The submitted values are put back through each field’s own transformers before the comparison, so <code>15</code> matches <code>15.00</code>.</p>
         </div>
       </div>
     </div>
@@ -572,6 +574,7 @@ POST /article/42/edit
         <li>Both forms are open on the same version of the product.</li>
         <li><b>Bob</b> changes the price and saves.</li>
         <li><b>Alice</b>, who still sees the old price, changes the name and saves.</li>
+        <li>Refused? She can tick the box, or type in Bob’s price and save again.</li>
       </ol>
 
       <div class="panes">
@@ -625,7 +628,7 @@ POST /article/42/edit
         <ul>
           <li>Two submissions in the same few milliseconds both pass the check. Add <code>#[ORM\Version]</code> where that matters.</li>
           <li>An object kept in the session instead of reloaded on each request: nothing to compare against.</li>
-          <li>API clients and <code>PATCH</code>-style partial submits must send the token back or turn the option off, as with CSRF.</li>
+          <li>API clients must send the token back or turn the option off, as with CSRF. A <code>PATCH</code>-style partial submit that leaves out a field changed meanwhile is fine: it doesn’t overwrite it.</li>
         </ul>
       </div>
     </div>
@@ -642,11 +645,11 @@ POST /article/42/edit
     <div class="feat">
       <div class="fcard reveal"><span class="ic">⚡</span><h3>LiveComponent-safe</h3><p>A component submits on every keystroke, and the first version let a re-render quietly swap the token. A test in the demo caught it; the explicit acknowledgement fixed it.</p></div>
       <div class="fcard reveal"><span class="ic">🙈</span><h3>Never discloses</h3><p>A field that doesn’t render its value, like a password, only says it changed, so the conflict never reveals what the form hides.</p></div>
-      <div class="fcard reveal"><span class="ic">🏷️</span><h3>Readable values</h3><p>A choice shows its label (“Tutorial”), not its value (“2”), with the field’s own translation domain.</p></div>
+      <div class="fcard reveal"><span class="ic">🏷️</span><h3>Readable values</h3><p>A choice shows its label (“Tutorial”), not its value (“2”), with the field’s own translation domain. Messages come in English and French.</p></div>
       <div class="fcard reveal"><span class="ic">🧺</span><h3>Collections</h3><p>Entries the user adds or removes are fine, while entries someone else added are reported on the collection.</p></div>
+      <div class="fcard reveal"><span class="ic">🤝</span><h3>Taking their value</h3><p>Typing in the value someone else saved overwrites nothing, so that field is no longer a conflict and there is no box to tick.</p></div>
       <div class="fcard reveal"><span class="ic">🔎</span><h3>GET forms skipped</h3><p>Searches and filters change nothing and are reached by plain links, so they get no token.</p></div>
       <div class="fcard reveal"><span class="ic">🧩</span><h3>Dependent fields</h3><p>Fields rebuilt from the submitted values in <code>PRE_SUBMIT</code> don’t raise false conflicts.</p></div>
-      <div class="fcard reveal"><span class="ic">🌍</span><h3>English &amp; French</h3><p>Messages live in the <code>form_concurrency</code> translation domain, both languages included.</p></div>
       <div class="fcard reveal"><span class="ic">✅</span><h3>Tested</h3><p>PHPStan level 9 and PHPUnit, exploration tests showing why the rejected options fail, and the demo played in a real browser.</p></div>
     </div>
   </div>
@@ -760,7 +763,7 @@ POST /article/42/edit
   ];
   var INITIAL = {name:'Mechanical keyboard', price:'89.90', category:'Accessories', stock:12};
   var MSG = {
-    conflict:'Someone else saved this record while you were editing it. The fields marked below were changed: review them, then tick the confirmation box to save your values anyway.',
+    conflict:'Someone else saved this record while you were editing it. The fields marked below were changed: take their current value, or tick the confirmation box to save your values anyway.',
     changedTo:'Changed by someone else since you opened the form. Current value: ',
     cleared:'Cleared by someone else since you opened the form.',
     ack:'I have reviewed these changes: save my values anyway.'
@@ -795,7 +798,10 @@ POST /article/42/edit
     var current = fingerprint(stored);
     var acked = p.form.querySelector('[name=ack]');
     var ackValid = acked && acked.checked && p.ackToken && changed(p.ackToken, current).length === 0;
-    var diff = changed(p.token, current);
+    var moved = changed(p.token, current);
+    // a field changed meanwhile is not a conflict if the user now submits the value it holds: nothing is overwritten
+    var diff = moved.filter(function(k){ return String(p.values[k]).trim() !== current[k]; });
+    var taken = moved.filter(function(k){ return diff.indexOf(k) === -1; });
 
     if(protect.checked && diff.length && !ackValid){
       p.errors = {};
@@ -818,6 +824,7 @@ POST /article/42/edit
       line += '. Silently put back ' + overwrote.map(function(k){ return k + ' ' + before[k] + ' → ' + stored[k]; }).join(', ');
       cls = 'lost';
     } else if(ackValid){ line += ' (after reviewing the conflict)'; }
+    else if(protect.checked && taken.length){ line += ' (took the current ' + taken.join(', ') + ': nothing overwritten, no box to tick)'; }
     history.push({cls:cls, text:line});
     Object.keys(panes).forEach(function(k){ panes[k].ok = null; });
     load(who);

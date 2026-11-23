@@ -4,7 +4,7 @@
         <body>
             <trans-unit id="form_concurrency.conflict">
                 <source>form_concurrency.conflict</source>
-                <target>Quelqu’un d’autre a enregistré cette fiche pendant que vous la modifiiez. Les champs signalés ci-dessous ont changé : vérifiez-les, puis cochez la case de confirmation pour enregistrer vos valeurs malgré tout.</target>
+                <target>Quelqu’un d’autre a enregistré cette fiche pendant que vous la modifiiez. Les champs signalés ci-dessous ont changé : reprenez leur valeur actuelle, ou cochez la case de confirmation pour enregistrer vos valeurs malgré tout.</target>
             </trans-unit>
             <trans-unit id="form_concurrency.field_changed">
                 <source>form_concurrency.field_changed</source>

@@ -30,6 +30,12 @@ final class ConcurrencyTokenListener implements EventSubscriberInterface
 
     private bool $conflict = false;
 
+    /**
+     * Whether the submission carries, for every field changed meanwhile, the value it holds now: saving it overwrites
+     * nothing, so the conflict is not reported. It only holds for that submission, see token().
+     */
+    private bool $overwritesNothing = false;
+
     /** The token the submission was based on, sent back as is while the conflict is not acknowledged. */
     private ?string $seenToken = null;
 
@@ -90,6 +96,7 @@ final class ConcurrencyTokenListener implements EventSubscriberInterface
         $acknowledged = null !== $acknowledgement && hash_equals($this->current->toToken(), $acknowledgement);
 
         $changedPaths = null === $seen ? [] : $seen->changedPaths($this->current);
+        $this->overwritesNothing = false;
         $this->conflict = !$acknowledged && (null === $seen || [] !== $changedPaths);
         $this->currentValues = $this->conflict && [] !== $changedPaths ? $this->displayedValues($form, $changedPaths) : [];
 
@@ -102,8 +109,21 @@ final class ConcurrencyTokenListener implements EventSubscriberInterface
     public function onPostSubmit(FormEvent $event): void
     {
         $form = $event->getForm();
-        if (!$this->conflict || !$this->isProtected($form)) {
+        if (!$this->conflict || !$this->isProtected($form) || null === $this->current) {
             return;
+        }
+
+        // A field changed meanwhile is not a conflict when the user submits the value it holds now: saving it
+        // overwrites nothing. Without a usable token there are no changed fields to compare, so it stays a conflict.
+        if ([] !== $this->currentValues) {
+            $differing = Fingerprint::ofSubmittedForm($form, $this->secret)->changedPaths($this->current);
+            $this->currentValues = array_intersect_key($this->currentValues, array_flip($differing));
+
+            if ([] === $this->currentValues) {
+                $this->overwritesNothing = true;
+
+                return;
+            }
         }
 
         $form->addError($this->error(self::CONFLICT_MESSAGE));
@@ -131,6 +151,9 @@ final class ConcurrencyTokenListener implements EventSubscriberInterface
      * The token to render. Without a conflict, it is the state the form shows. After a conflict, it stays the token
      * the submission was based on: rendering the form again, as a LiveComponent does on every change and reads the
      * values back, must not settle the conflict. Only the acknowledgement does.
+     *
+     * A submission that overwrites nothing keeps that token too: the next one is compared again with the stored
+     * state, so that a value typed after it, in a LiveComponent that submits on every change, is still a conflict.
      */
     public function token(): string
     {
@@ -146,7 +169,7 @@ final class ConcurrencyTokenListener implements EventSubscriberInterface
      */
     public function acknowledgementToken(): ?string
     {
-        return $this->conflict ? $this->current?->toToken() : null;
+        return $this->conflict && !$this->overwritesNothing ? $this->current?->toToken() : null;
     }
 
     /**

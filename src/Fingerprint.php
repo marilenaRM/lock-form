@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace LockForm\FormConcurrency;
 
+use Symfony\Component\Form\Exception\TransformationFailedException;
 use Symfony\Component\Form\FormInterface;
 
 /**
@@ -28,7 +29,23 @@ final readonly class Fingerprint
     public static function ofForm(FormInterface $form, #[\SensitiveParameter] string $secret): self
     {
         $hashes = [];
-        self::collect($form, '', $secret, $hashes);
+        self::collect($form, '', $secret, $hashes, static fn (FormInterface $field): mixed => $field->getViewData());
+        ksort($hashes);
+
+        return new self($hashes);
+    }
+
+    /**
+     * What a submitted form would display if it were saved, for comparison with what is stored now.
+     *
+     * The view data of a submitted field is the raw submitted value ("15", " Ada"), so each field's normalized
+     * data is turned back into view data with its own transformers ("15.00", "Ada"), as a fresh load of the saved
+     * state would display it. A field whose value could not be transformed is left out: it never matches.
+     */
+    public static function ofSubmittedForm(FormInterface $form, #[\SensitiveParameter] string $secret): self
+    {
+        $hashes = [];
+        self::collect($form, '', $secret, $hashes, self::normalizedViewData(...));
         ksort($hashes);
 
         return new self($hashes);
@@ -85,9 +102,10 @@ final readonly class Fingerprint
     }
 
     /**
-     * @param array<string, string> $hashes
+     * @param array<string, string>          $hashes
+     * @param \Closure(FormInterface): mixed $valueOf the value to hash for a leaf field; an object is left out
      */
-    private static function collect(FormInterface $form, string $prefix, string $secret, array &$hashes): void
+    private static function collect(FormInterface $form, string $prefix, string $secret, array &$hashes, \Closure $valueOf): void
     {
         foreach ($form as $name => $child) {
             // A disabled field is never submitted, so a concurrent change to it cannot be overwritten.
@@ -99,12 +117,12 @@ final readonly class Fingerprint
             $path = '' === $prefix ? (string) $name : $prefix.'.'.$name;
 
             if ($child->getConfig()->getCompound()) {
-                self::collect($child, $path, $secret, $hashes);
+                self::collect($child, $path, $secret, $hashes, $valueOf);
 
                 continue;
             }
 
-            $value = $child->getViewData();
+            $value = $valueOf($child);
             if (\is_object($value)) {
                 continue;
             }
@@ -112,5 +130,33 @@ final readonly class Fingerprint
             // serialize() rather than json_encode(): stored strings are not guaranteed to be valid UTF-8.
             $hashes[$path] = substr(hash_hmac('sha256', serialize($value), $secret), 0, 16);
         }
+    }
+
+    /**
+     * Same as Form::normToView(), which is private.
+     *
+     * @return mixed an object when the value cannot be compared, so that it is left out
+     */
+    private static function normalizedViewData(FormInterface $field): mixed
+    {
+        if (!$field->isSynchronized()) {
+            return new \stdClass();
+        }
+
+        $value = $field->getNormData();
+        $transformers = $field->getConfig()->getViewTransformers();
+        if ([] === $transformers) {
+            return null === $value || \is_scalar($value) ? (string) $value : $value;
+        }
+
+        try {
+            foreach ($transformers as $transformer) {
+                $value = $transformer->transform($value);
+            }
+        } catch (TransformationFailedException) {
+            return new \stdClass();
+        }
+
+        return $value;
     }
 }
