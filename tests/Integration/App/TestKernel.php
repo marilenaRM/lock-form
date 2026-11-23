@@ -7,6 +7,7 @@ namespace LockForm\FormConcurrency\Tests\Integration\App;
 use LockForm\FormConcurrency\FormConcurrencyBundle;
 use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
 use Symfony\Bundle\FrameworkBundle\Kernel\MicroKernelTrait;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\HttpKernel\Kernel;
 use Symfony\Component\Routing\Loader\Configurator\RoutingConfigurator;
@@ -51,7 +52,8 @@ final class TestKernel extends Kernel
 
         // The "presence" environment turns the presence indicator on; every other one keeps the defaults.
         if ('presence' === $this->environment) {
-            $container->extension('framework', ['cache' => ['pools' => ['test.presence_pool' => ['adapter' => 'cache.adapter.array']]]]);
+            // A plain service, not a framework pool: those are reset between two requests of the same kernel.
+            $container->services()->set('test.presence_pool', ArrayAdapter::class);
             $container->extension('form_concurrency', ['presence' => [
                 'cache_pool' => 'test.presence_pool',
                 'identity' => HeaderPresenceIdentity::class,
