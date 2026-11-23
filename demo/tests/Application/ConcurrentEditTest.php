@@ -172,6 +172,9 @@ final class ConcurrentEditTest extends WebTestCase
         yield 'product form as Bob, unprotected' => ['/products/1/edit?as=bob&protection=0'];
         yield 'stock form' => ['/products/1/stock?as=bob'];
         yield 'save history' => ['/products/1/history'];
+        yield 'demo with LiveComponent forms' => ['/?live=1'];
+        yield 'LiveComponent form as Bob' => ['/products/1/live?as=bob'];
+        yield 'LiveComponent form, unprotected' => ['/products/1/live?as=alice&protection=0'];
     }
 
     public function testTheResetButtonPutsTheDemoBackToItsStartingPoint(): void
@@ -183,7 +186,7 @@ final class ConcurrentEditTest extends WebTestCase
         $this->alice->request('GET', '/');
         $this->alice->submit($this->alice->getCrawler()->selectButton('Réinitialiser la démo')->form());
 
-        self::assertResponseRedirects('/?protection=1');
+        self::assertResponseRedirects('/?protection=1&live=0');
         self::assertSame(['Clavier mécanique', '89.90'], $this->storedNameAndPrice());
     }
 

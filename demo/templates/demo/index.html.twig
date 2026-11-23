@@ -1,5 +1,8 @@
 {% extends 'base.html.twig' %}
 
+{% set params = {protection: protection ? '1' : '0', live: live ? '1' : '0'} %}
+{% set editor_route = live ? 'product_live_edit' : 'product_edit' %}
+
 {% block body %}
 <header class="demo-header">
     <h1>{{ 'demo.title'|trans }}</h1>
@@ -7,10 +10,14 @@
 
     <div class="demo-controls">
         <nav class="toggle" aria-label="{{ 'demo.protection.label'|trans }}">
-            <a href="{{ path('demo', {protection: '1'}) }}" class="toggle-option{{ protection ? ' is-active' }}" {% if protection %}aria-current="page"{% endif %}>{{ 'demo.protection.on'|trans }}</a>
-            <a href="{{ path('demo', {protection: '0'}) }}" class="toggle-option{{ not protection ? ' is-active' }}" {% if not protection %}aria-current="page"{% endif %}>{{ 'demo.protection.off'|trans }}</a>
+            <a href="{{ path('demo', params|merge({protection: '1'})) }}" class="toggle-option{{ protection ? ' is-active' }}" {% if protection %}aria-current="page"{% endif %}>{{ 'demo.protection.on'|trans }}</a>
+            <a href="{{ path('demo', params|merge({protection: '0'})) }}" class="toggle-option{{ not protection ? ' is-active' }}" {% if not protection %}aria-current="page"{% endif %}>{{ 'demo.protection.off'|trans }}</a>
         </nav>
-        <form method="post" action="{{ path('demo_reset', {protection: protection ? '1' : '0'}) }}">
+        <nav class="toggle" aria-label="{{ 'demo.mode.label'|trans }}">
+            <a href="{{ path('demo', params|merge({live: '0'})) }}" class="toggle-option{{ not live ? ' is-active' }}" {% if not live %}aria-current="page"{% endif %}>{{ 'demo.mode.classic'|trans }}</a>
+            <a href="{{ path('demo', params|merge({live: '1'})) }}" class="toggle-option{{ live ? ' is-active' }}" {% if live %}aria-current="page"{% endif %}>{{ 'demo.mode.live'|trans }}</a>
+        </nav>
+        <form method="post" action="{{ path('demo_reset', params) }}">
             <input type="hidden" name="_token" value="{{ csrf_token('demo_reset') }}">
             <button type="submit" class="button-secondary">{{ 'demo.reset'|trans }}</button>
         </form>
@@ -20,6 +27,7 @@
     <p class="protection-note {{ protection ? 'is-on' : 'is-off' }}">
         {{ (protection ? 'demo.protection.enabled_note' : 'demo.protection.disabled_note')|trans }}
     </p>
+    {% if live %}<p class="mode-note">{{ 'demo.mode.live_note'|trans }}</p>{% endif %}
 </header>
 
 <main class="demo-grid">
@@ -27,9 +35,9 @@
         <section class="editor editor-{{ user }}" aria-labelledby="editor-{{ user }}-title">
             <h2 id="editor-{{ user }}-title">{{ ('demo.user.' ~ user)|trans }}</h2>
             <iframe name="{{ user }}" title="{{ ('demo.user.' ~ user)|trans }}" data-editor
-                    src="{{ path('product_edit', {id: product.id, as: user, protection: protection ? '1' : '0'}) }}"></iframe>
+                    src="{{ path(editor_route, {id: product.id, as: user, protection: params.protection}) }}"></iframe>
             <p class="editor-links">
-                <a href="{{ path('product_edit', {id: product.id, as: user, protection: protection ? '1' : '0'}) }}" target="{{ user }}">{{ 'demo.links.reload'|trans }}</a>
+                <a href="{{ path(editor_route, {id: product.id, as: user, protection: params.protection}) }}" target="{{ user }}">{{ 'demo.links.reload'|trans }}</a>
                 <a href="{{ path('product_stock', {id: product.id, as: user}) }}" target="{{ user }}">{{ 'demo.links.stock'|trans }}</a>
             </p>
         </section>

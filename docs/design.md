@@ -148,7 +148,8 @@ submitting it again was the acknowledgement. That broke with LiveComponent. `Com
 the form on every re-render, that is every time the user types, then reads the form values back from the
 rendered view, the token included. The first keystroke after someone else's save therefore swapped the token
 for the current one, and the next save overwrote the other person's change without a word. A test in the
-demo (`LiveComponentConflictTest`) reproduced it before the fix. An explicit acknowledgement fixes it for
+demo (`LiveComponentConflictTest`) reproduced it before the fix; the demo now has the LiveComponent version of
+the form side by side with the classic one, and `e2e/live.mjs` plays the scenario in a browser. An explicit acknowledgement fixes it for
 LiveComponent, and is also clearer for a classic form: sending the same form again by reflex no longer counts
 as "I reviewed it".
 
@@ -228,5 +229,3 @@ actually fail, I disabled the detection by hand (`conflict = false`) and 17 test
    will tell whether its own types and listeners hold up.
 2. Dispatch an event on every conflict, so that an application can count them before deciding on option A.
 3. If the need is confirmed, add the non-blocking presence indicator (option A) on top.
-4. Give the demo an interactive LiveComponent page (it needs AssetMapper and the LiveComponent JavaScript);
-   only its tests use the component for now.

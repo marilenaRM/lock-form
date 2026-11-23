@@ -21,9 +21,6 @@ use Symfony\UX\LiveComponent\DefaultActionTrait;
 /**
  * The same product form as ProductController::edit(), as a LiveComponent: it re-renders, and submits the form,
  * on every change. The product is a LiveProp, so it is reloaded from the database on every request.
- *
- * Only exercised by tests/Integration/LiveComponentConflictTest for now: a page using it would also need
- * the LiveComponent JavaScript (AssetMapper, Stimulus), which the demo does not ship yet.
  */
 #[AsLiveComponent]
 final class ProductLiveForm extends AbstractController
@@ -37,6 +34,9 @@ final class ProductLiveForm extends AbstractController
     #[LiveProp]
     public DemoUser $as = DemoUser::Alice;
 
+    #[LiveProp]
+    public bool $protection = true;
+
     #[LiveAction]
     public function save(EntityManagerInterface $entityManager, SaveHistory $history): Response
     {
@@ -44,16 +44,19 @@ final class ProductLiveForm extends AbstractController
 
         $product = $this->getForm()->getData();
         \assert($product instanceof Product);
-        $history->record($product, $this->as, 'live', true);
+        $history->record($product, $this->as, 'live', $this->protection);
         $entityManager->flush();
         $this->addFlash('success', 'product.saved');
 
-        return $this->redirectToRoute('product_edit', ['id' => $product->getId(), 'as' => $this->as->value]);
+        return $this->redirectToRoute('product_live_edit', ['id' => $product->getId(), 'as' => $this->as->value, 'protection' => $this->protection ? '1' : '0']);
     }
 
     protected function instantiateForm(): FormInterface
     {
         // LiveComponent requests carry their own same-origin check, so the form's CSRF token is not used here.
-        return $this->createForm(ProductType::class, $this->record, ['csrf_protection' => false]);
+        return $this->createForm(ProductType::class, $this->record, [
+            'csrf_protection' => false,
+            'concurrency_protection' => $this->protection,
+        ]);
     }
 }

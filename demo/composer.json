@@ -18,6 +18,8 @@
         "doctrine/doctrine-bundle": "^2.13",
         "doctrine/orm": "^3.3",
         "lock-form/form-concurrency": "*@dev",
+        "symfony/asset": "^7.3",
+        "symfony/asset-mapper": "^7.3",
         "symfony/clock": "^7.3",
         "symfony/console": "^7.3",
         "symfony/dotenv": "^7.3",

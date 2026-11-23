@@ -67,6 +67,8 @@ form ul:not([data-tags-list]):not(.changes) { list-style: none; padding: .5rem .
 .acknowledgement input { order: -1; }
 .acknowledgement label { display: inline; font-weight: 600; margin: 0; }
 .flash { margin: 0 0 .75rem; padding: .5rem .75rem; background: #e5f3ea; color: var(--ok); border-radius: 4px; }
+.badge-live { display: inline-block; margin-left: .35rem; padding: 0 .4rem; border-radius: 4px; background: #e8eefc; color: var(--alice); font-size: .8rem; }
+.mode-note { margin: -.5rem 0 1rem; color: var(--muted); }
 .badge-off { display: inline-block; margin-left: .35rem; padding: 0 .4rem; border-radius: 4px; background: #fbe9e7; color: var(--danger); font-size: .8rem; }
 
 .history-table { width: 100%; border-collapse: collapse; background: var(--paper); }

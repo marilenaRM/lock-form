@@ -222,6 +222,26 @@
                 <source>history.form.stock</source>
                 <target>Stock</target>
             </trans-unit>
+            <trans-unit id="demo.mode.label">
+                <source>demo.mode.label</source>
+                <target>Kind of form</target>
+            </trans-unit>
+            <trans-unit id="demo.mode.classic">
+                <source>demo.mode.classic</source>
+                <target>Classic form</target>
+            </trans-unit>
+            <trans-unit id="demo.mode.live">
+                <source>demo.mode.live</source>
+                <target>LiveComponent</target>
+            </trans-unit>
+            <trans-unit id="demo.mode.live_note">
+                <source>demo.mode.live_note</source>
+                <target>Each form is a LiveComponent: leaving a field re-renders it and submits the form to the server, before anyone clicks Save.</target>
+            </trans-unit>
+            <trans-unit id="history.form.live">
+                <source>history.form.live</source>
+                <target>Product (LiveComponent)</target>
+            </trans-unit>
         </body>
     </file>
 </xliff>

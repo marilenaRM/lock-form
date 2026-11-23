@@ -1,14 +1,32 @@
 <div {{ attributes }}>
-    {{ form_start(form, {attr: {'data-action': 'live#action:prevent', 'data-live-action-param': 'save'}}) }}
+    {# Every field change re-renders the component, which submits the form to the server: the case the protection must survive. #}
+    {{ form_start(form, {attr: {
+        'data-model': 'on(change)|*',
+        'data-action': 'live#action:prevent',
+        'data-live-action-param': 'save',
+    }}) }}
         {{ form_errors(form) }}
         {{ form_row(form.name) }}
         {{ form_row(form.priceInCents) }}
         {{ form_row(form.status) }}
         {{ form_row(form.category) }}
-        {{ form_row(form.tags) }}
+
+        {# Existing tags only: adding or removing entries would need LiveCollectionType. #}
+        <fieldset class="tags">
+            <legend>{{ form_label(form.tags) }}</legend>
+            {{ form_errors(form.tags) }}
+            <ul data-tags-list>
+                {% for tag in form.tags %}
+                    <li>{{ form_widget(tag) }} {{ form_errors(tag) }}</li>
+                {% endfor %}
+            </ul>
+            {% do form.tags.setRendered %}
+        </fieldset>
+
         {% if form._concurrency_token_acknowledged is defined %}
             <div class="acknowledgement">{{ form_row(form._concurrency_token_acknowledged) }}</div>
         {% endif %}
-        <button type="submit">{{ 'product.save'|trans }}</button>
+
+        <button type="submit" data-loading="addAttribute(disabled)">{{ 'product.save'|trans }}</button>
     {{ form_end(form) }}
 </div>
