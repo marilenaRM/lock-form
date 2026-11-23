@@ -6,6 +6,7 @@
     <title>{% block title %}{{ 'demo.title'|trans }}{% endblock %}</title>
     <link rel="stylesheet" href="/demo.css">
     <script src="/demo.js" defer></script>
+    <script src="{{ asset('bundles/formconcurrency/presence.js') }}" defer></script>
     {{ importmap('app') }}
 </head>
 <body class="{% block body_class %}page{% endblock %}">

@@ -16,8 +16,16 @@
         "phpstan/phpstan": "^2.1",
         "phpstan/phpstan-phpunit": "^2.0",
         "phpunit/phpunit": "^12.0",
+        "symfony/cache": "^7.3",
         "symfony/framework-bundle": "^7.3",
+        "symfony/routing": "^7.3",
+        "symfony/security-core": "^7.3",
         "symfony/translation": "^7.3"
+    },
+    "suggest": {
+        "symfony/cache": "For the presence indicator (form_concurrency.presence): where open tabs are kept",
+        "symfony/routing": "For the presence indicator: the heartbeat route",
+        "symfony/security-bundle": "For the presence indicator: names the logged-in user, unless you provide a PresenceIdentity"
     },
     "autoload": {
         "psr-4": {

@@ -1,0 +1,2 @@
+form_concurrency:
+    resource: '@FormConcurrencyBundle/config/routes.php'

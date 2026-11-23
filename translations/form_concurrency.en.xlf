@@ -26,6 +26,18 @@
                 <source>form_concurrency.acknowledge</source>
                 <target>I have reviewed these changes: save my values anyway.</target>
             </trans-unit>
+            <trans-unit id="form_concurrency.presence.someone">
+                <source>form_concurrency.presence.someone</source>
+                <target>Someone else is also editing this record.</target>
+            </trans-unit>
+            <trans-unit id="form_concurrency.presence.one">
+                <source>form_concurrency.presence.one</source>
+                <target>{{ name }} is also editing this record.</target>
+            </trans-unit>
+            <trans-unit id="form_concurrency.presence.many">
+                <source>form_concurrency.presence.many</source>
+                <target>{{ names }} are also editing this record.</target>
+            </trans-unit>
         </body>
     </file>
 </xliff>

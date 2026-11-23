@@ -66,7 +66,7 @@ Options:
 | `config/packages/form_concurrency.yaml` | `field_name` | `_concurrency_token` |
 | `config/packages/form_concurrency.yaml` | `conflict_event` | `false` |
 
-To count conflicts, for instance before deciding whether a presence indicator is worth it, turn on
+To count conflicts, for instance before deciding whether the [presence indicator](#presence-indicator-optional) is worth it, turn on
 `conflict_event`. Each refused submission then dispatches a `ConcurrencyConflictEvent`, once the errors are on
 the form:
 
@@ -128,6 +128,116 @@ $factory = Forms::createFormFactoryBuilder()
 ```
 
 Pass `dispatcher: $eventDispatcher` to `FormConcurrencyExtension` to get the conflict event there too.
+
+## Presence indicator (optional)
+
+The token above reports a conflict when the second person saves. The presence indicator warns earlier, while
+both are still typing: "Bob is also editing this record.", shown above the form. It is a hint, not a lock: it
+blocks nothing, and the token is still what protects the data.
+
+### Is it worth it?
+
+Measure first. Turn on `conflict_event` and count the conflicts for a few weeks, once per edit (distinct
+session, URL and `seenToken`, leaving tokenless submissions aside), next to the number of saves of the same
+forms. Then:
+
+- **conflicts are rare** (a handful a month on a back office): stay with the token alone. Each conflict costs
+  one review of the fields it lists, which is cheaper than a heartbeat from every open form;
+- **conflicts are frequent, or concentrated on a few forms**, or each one is costly (long forms, input typed
+  from paper, people who lose their changes rather than review them): turn the indicator on, and only for
+  those forms if they are few. Check afterwards that the conflict count goes down: if it does not, people
+  ignore the banner and it is not worth its requests.
+
+There is no universal threshold: these figures are a starting point to discuss, not a measurement.
+
+### Turning it on
+
+It is off by default. Off, the bundle registers no service and no route, and renders nothing more.
+
+```yaml
+# config/packages/form_concurrency.yaml
+form_concurrency:
+    presence:
+        enabled: true
+        # cache_pool: cache.app      where open tabs are kept
+        # identity: ~                a service implementing PresenceIdentity; the logged-in user by default
+        # interval: 15               seconds between two heartbeats of a tab
+        # ttl: 90                    seconds without a heartbeat before a tab counts as closed
+```
+
+```yaml
+# config/routes/form_concurrency.yaml
+form_concurrency:
+    resource: '@FormConcurrencyBundle/config/routes.php'
+```
+
+```twig
+{# in the layout, once: AssetMapper serves it as is, otherwise run assets:install #}
+<script src="{{ asset('bundles/formconcurrency/presence.js') }}" defer></script>
+```
+
+The script has no dependency. It adds a `<p class="concurrency-presence" role="status">` before the form;
+style it as you like.
+
+It needs `symfony/cache` (any PSR-6 pool) and `symfony/routing`. Without a custom identity, it also needs
+`symfony/security-bundle`, and only tracks logged-in users, named by their user identifier. To show a full
+name, or to track people without a login, implement `PresenceIdentity`:
+
+```php
+use LockForm\FormConcurrency\Presence\PresenceIdentity;
+use LockForm\FormConcurrency\Presence\PresenceViewer;
+
+final class StaffPresenceIdentity implements PresenceIdentity
+{
+    public function __construct(private readonly Security $security) {}
+
+    public function viewer(Request $request): ?PresenceViewer
+    {
+        $user = $this->security->getUser();
+
+        // The id groups the tabs of one person; the name is what the others read.
+        return $user instanceof StaffMember ? new PresenceViewer((string) $user->getId(), $user->getFullName()) : null;
+    }
+}
+```
+
+Form options:
+
+| Option | Default | |
+|---|---|---|
+| `concurrency_presence` | `true` when turned on | `false` to leave one form out |
+| `concurrency_presence_key` | the path of the page | the record, when several pages edit it, or in a LiveComponent |
+
+People are on the same record when their pages have the same path (`/article/42/edit`), the query string left
+out. Name the record yourself when two pages edit it, and always in a LiveComponent, whose re-renders come from
+another URL:
+
+```php
+$this->createForm(ArticleType::class, $article, ['concurrency_presence_key' => 'article-'.$article->getId()]);
+```
+
+The attributes go on the `<form>` tag through `form.vars.attr`. A template that passes its own `attr` to
+`form_start()` replaces them; merge instead: `form_start(form, {attr: form.vars.attr|merge({...})})`.
+
+### How it works, and its limits
+
+The page renders a token signed with `kernel.secret`, holding the record key and the viewer. Every `interval`
+seconds, each tab posts it to `/_form_concurrency/presence` and gets back who else has the record open; when the
+tab is closed or left, it says so with `sendBeacon`. The identity is resolved when the form is rendered, so the
+heartbeat needs neither the session nor the firewall, and cannot be used to ask about another record or to
+pose as someone else.
+
+- The list is kept in one cache item per record. Two heartbeats at the same instant can drop one tab until its
+  next heartbeat: fine for a hint, which is all this is.
+- A tab that disappears without a word (crash, lost network) stays listed for up to `ttl` seconds. Browsers slow
+  down the timers of background tabs to about one a minute, hence the 90 s default: lower it and people who
+  only switched tabs flicker out.
+- It tells who has the form open, not who is typing nor who will save.
+- Every open form costs one request per `interval`. With 50 people each keeping one form open, that is about
+  3 requests a second, each a cache read and write.
+- Displayed names go to everyone who opens the same record. Use names your users already see of each other.
+- A token stays valid as long as the secret: someone can keep showing up on a page they once had the right to
+  open, until they close it.
 
 ## Development
 

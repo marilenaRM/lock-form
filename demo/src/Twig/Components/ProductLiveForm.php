@@ -58,6 +58,8 @@ final class ProductLiveForm extends AbstractController
             'csrf_protection' => false,
             'concurrency_protection' => $this->protection,
             'live_collection' => true,
+            // Re-renders come from /_components/…, not from this page: name the record so that they keep pointing at it.
+            'concurrency_presence_key' => 'product-'.$this->record?->getId(),
         ]);
     }
 }
