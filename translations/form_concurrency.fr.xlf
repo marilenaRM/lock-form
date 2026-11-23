@@ -4,7 +4,7 @@
         <body>
             <trans-unit id="form_concurrency.conflict">
                 <source>form_concurrency.conflict</source>
-                <target>Quelqu’un d’autre a enregistré cette fiche pendant que vous la modifiiez. Les champs signalés ci-dessous ont changé : vérifiez-les, puis renvoyez le formulaire pour conserver vos valeurs.</target>
+                <target>Quelqu’un d’autre a enregistré cette fiche pendant que vous la modifiiez. Les champs signalés ci-dessous ont changé : vérifiez-les, puis cochez la case de confirmation pour enregistrer vos valeurs malgré tout.</target>
             </trans-unit>
             <trans-unit id="form_concurrency.field_changed">
                 <source>form_concurrency.field_changed</source>
@@ -21,6 +21,10 @@
             <trans-unit id="form_concurrency.entries_changed">
                 <source>form_concurrency.entries_changed</source>
                 <target>{{ field }} : des éléments ont été ajoutés ou supprimés par quelqu’un d’autre depuis l’ouverture du formulaire.</target>
+            </trans-unit>
+            <trans-unit id="form_concurrency.acknowledge">
+                <source>form_concurrency.acknowledge</source>
+                <target>J’ai pris connaissance de ces changements : enregistrer mes valeurs malgré tout.</target>
             </trans-unit>
         </body>
     </file>

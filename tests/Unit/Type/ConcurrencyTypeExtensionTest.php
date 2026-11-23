@@ -211,22 +211,77 @@ final class ConcurrencyTypeExtensionTest extends TestCase
         self::assertSame('Tags', $this->collectionErrorOf($form)->getMessageParameters()['{{ field }}'] ?? null);
     }
 
-    public function testResubmittingTheFormRenderedAfterAConflictKeepsTheUserValues(): void
+    public function testSubmittingTheFormRenderedAfterAConflictAgainIsStillAConflict(): void
     {
         $payload = FormRoundTrip::payloadOf($this->openForm());
         $payload['price'] = '20.00';
         $this->store->changeConcurrently(static function (Article $article): void {
             $article->price = 15.0;
         });
-
         $conflicting = $this->submitOnFreshLoad($payload);
-        self::assertFalse($conflicting->isValid());
 
-        $payload['_concurrency_token'] = FormRoundTrip::tokenOf($conflicting);
-        $form = $this->submitOnFreshLoad($payload);
+        // What a browser sends back from the re-rendered form, and what a LiveComponent reads back on every re-render.
+        $form = $this->submitOnFreshLoad(FormRoundTrip::payloadOf($conflicting));
+
+        self::assertFalse($form->isValid());
+        self::assertSame([ConcurrencyTokenListener::CONFLICT_MESSAGE], $this->messagesOf($form));
+    }
+
+    public function testTheAcknowledgementBoxIsOnlyRenderedWithAConflict(): void
+    {
+        self::assertArrayNotHasKey('_concurrency_token_acknowledged', $this->openForm()->createView()->children);
+
+        $payload = FormRoundTrip::payloadOf($this->openForm());
+        $this->store->changeConcurrently(static function (Article $article): void {
+            $article->price = 15.0;
+        });
+        $view = $this->submitOnFreshLoad($payload)->createView();
+
+        self::assertArrayHasKey('_concurrency_token_acknowledged', $view->children);
+        self::assertFalse($view->children['_concurrency_token_acknowledged']->vars['checked'], 'never ticked for the user');
+    }
+
+    public function testAcknowledgingTheConflictSavesTheUserValues(): void
+    {
+        $payload = FormRoundTrip::payloadOf($this->openForm());
+        $payload['price'] = '20.00';
+        $this->store->changeConcurrently(static function (Article $article): void {
+            $article->price = 15.0;
+        });
+        $conflicting = $this->submitOnFreshLoad($payload);
+
+        $form = $this->submitOnFreshLoad(self::acknowledged($conflicting));
 
         self::assertTrue($form->isValid());
         self::assertSame(20.0, $this->article($form)->price);
+    }
+
+    public function testAnAcknowledgementOnlyCoversTheStateItWasGivenFor(): void
+    {
+        $payload = FormRoundTrip::payloadOf($this->openForm());
+        $this->store->changeConcurrently(static function (Article $article): void {
+            $article->price = 15.0;
+        });
+        $conflicting = $this->submitOnFreshLoad($payload);
+        $this->store->changeConcurrently(static function (Article $article): void {
+            $article->title = 'Saved again by someone else';
+        });
+
+        $form = $this->submitOnFreshLoad(self::acknowledged($conflicting));
+
+        self::assertFalse($form->isValid());
+        self::assertSame([ConcurrencyTokenListener::FIELD_CHANGED_TO_MESSAGE], $this->messagesOf($form->get('title')));
+    }
+
+    public function testAForgedAcknowledgementIsIgnored(): void
+    {
+        $payload = FormRoundTrip::payloadOf($this->openForm());
+        $this->store->changeConcurrently(static function (Article $article): void {
+            $article->price = 15.0;
+        });
+        $payload['_concurrency_token_acknowledged'] = $payload['_concurrency_token'];
+
+        self::assertFalse($this->submitOnFreshLoad($payload)->isValid());
     }
 
     #[DataProvider('unusableTokens')]
@@ -370,6 +425,19 @@ final class ConcurrencyTypeExtensionTest extends TestCase
         }
 
         self::fail('No error was reported on the collection.');
+    }
+
+    /**
+     * The re-rendered form sent back with the acknowledgement box ticked.
+     *
+     * @return array<string, mixed>
+     */
+    private static function acknowledged(FormInterface $conflicting): array
+    {
+        $payload = FormRoundTrip::payloadOf($conflicting);
+        $payload['_concurrency_token_acknowledged'] = $conflicting->createView()->children['_concurrency_token_acknowledged']->vars['value'];
+
+        return $payload;
     }
 
     /**

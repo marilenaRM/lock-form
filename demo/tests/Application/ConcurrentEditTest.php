@@ -10,6 +10,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\DomCrawler\Field\ChoiceFormField;
 use Symfony\Component\DomCrawler\Form;
 
 /**
@@ -62,7 +63,16 @@ final class ConcurrentEditTest extends WebTestCase
         $this->alice->submit($aliceForm);
         self::assertResponseStatusCodeSame(422);
 
-        $this->alice->submit($this->alice->getCrawler()->selectButton('Enregistrer')->form());
+        // Submitting the same form again is not enough: the conflict must be acknowledged.
+        $retry = $this->alice->getCrawler()->selectButton('Enregistrer')->form();
+        $this->alice->submit($retry);
+        self::assertResponseStatusCodeSame(422);
+
+        $acknowledged = $this->alice->getCrawler()->selectButton('Enregistrer')->form();
+        $checkbox = $acknowledged['product[_concurrency_token_acknowledged]'];
+        \assert($checkbox instanceof ChoiceFormField);
+        $checkbox->tick();
+        $this->alice->submit($acknowledged);
 
         self::assertResponseRedirects();
         self::assertSame(['Clavier mécanique sans fil', '95.00'], $this->storedNameAndPrice());

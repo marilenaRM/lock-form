@@ -57,6 +57,16 @@ async function scenario(protection) {
     if (protection) {
         await alice.getByText('Valeur actuelle : 99,00').waitFor();
         await caption('Alice est prévenue et voit le prix de Bob ; son nouveau nom est conservé');
+        await pause(1200);
+
+        await alice.locator('.acknowledgement').scrollIntoViewIfNeeded();
+        await caption('Pour garder ses valeurs malgré tout, elle doit le confirmer explicitement');
+        await alice.getByLabel('J’ai pris connaissance de ces changements', { exact: false }).check();
+        await alice.getByRole('button', { name: 'Enregistrer' }).click();
+        await alice.getByText('Enregistré.').waitFor();
+        await page.locator('.history').scrollIntoViewIfNeeded();
+        await history.locator('tbody tr').first().getByText('Alice').waitFor();
+        await caption('Enregistré, en connaissance de cause : l’historique le montre');
         await pause(1500);
     } else {
         await alice.getByText('Enregistré.').waitFor();

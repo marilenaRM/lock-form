@@ -27,6 +27,7 @@
         "symfony/security-csrf": "^7.3",
         "symfony/translation": "^7.3",
         "symfony/twig-bundle": "^7.3",
+        "symfony/ux-live-component": "^2.30",
         "symfony/yaml": "^7.3"
     },
     "require-dev": {

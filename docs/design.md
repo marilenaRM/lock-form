@@ -127,9 +127,30 @@ itself hides. Checkboxes and radios get it too, since their rendered value is no
 so the collection itself carries the error, with `form_concurrency.entries_changed`. That message names the
 field (`{{ field }}`), because a collection bubbles its errors up to the top of the form by default.
 
-The form shown again keeps what the user typed and carries a new token, the one for the current state.
-Submitting it again means "I've seen the changes, keep my values", and it goes through. A missing or
-unreadable token is treated as a conflict, the same way a missing CSRF token is.
+The form shown again keeps what the user typed, and it also gets a checkbox: "I have reviewed these changes:
+save my values anyway". Submitting the form again without ticking it is still a conflict, because the token
+it carries is still the one the user started from. Ticking it is what settles the conflict, and only for the
+state that was shown: the box carries that state's token, so if someone saves again in between, the user gets
+a new conflict and a new box. A missing or unreadable token is treated as a conflict, the same way a missing
+CSRF token is.
+
+The box is rendered with the rest of the form by `form_end()`. Most templates render the submit button
+themselves, so they will want to place it just before the button:
+
+```twig
+{% if form._concurrency_token_acknowledged is defined %}
+    {{ form_row(form._concurrency_token_acknowledged) }}
+{% endif %}
+```
+
+The first version worked differently: the re-rendered form carried the token of the current state, so
+submitting it again was the acknowledgement. That broke with LiveComponent. `ComponentWithFormTrait` submits
+the form on every re-render, that is every time the user types, then reads the form values back from the
+rendered view, the token included. The first keystroke after someone else's save therefore swapped the token
+for the current one, and the next save overwrote the other person's change without a word. A test in the
+demo (`LiveComponentConflictTest`) reproduced it before the fix. An explicit acknowledgement fixes it for
+LiveComponent, and is also clearer for a classic form: sending the same form again by reflex no longer counts
+as "I reviewed it".
 
 To turn it on in a Symfony application, enable `FormConcurrencyBundle`. Every compound root form is then
 protected, except GET forms. Those are searches and filters: they change nothing, and people reach them
@@ -138,8 +159,8 @@ through links (pagination, menus, bookmarks) that carry no token. You can turn i
 
 ## 4. What the tests cover
 
-`composer qa` passes: PHPStan at level 9 with no errors, and 131 green tests. To make sure the tests can
-actually fail, I disabled the detection by hand (`conflict = false`) and 14 tests failed. Moving the
+`composer qa` passes: PHPStan at level 9 with no errors, and 135 green tests. To make sure the tests can
+actually fail, I disabled the detection by hand (`conflict = false`) and 17 tests failed. Moving the
 `PRE_SUBMIT` priority to -1024 makes the dependent-field test fail.
 
 | Case | Test |
@@ -155,7 +176,11 @@ actually fail, I disabled the detection by hand (`conflict = false`) and 14 test
 | Property outside the form, disabled field, same value saved again → no conflict | `testAConcurrentChangeTheUserCannotOverwriteIsNotAConflict` |
 | `CollectionType`: entries added and removed by the user → no conflict | `testEntriesAddedOrRemovedByTheUserInACollectionAreNotAConflict` |
 | `CollectionType`: entry added by someone else → conflict, reported on the collection | `testAnEntryAddedConcurrentlyToACollectionIsAConflict` |
-| Resubmitting after a conflict → accepted, the user's values are kept | `testResubmittingTheFormRenderedAfterAConflictKeepsTheUserValues` |
+| Sending back the form rendered after a conflict, as is → still a conflict (what a LiveComponent does on every re-render) | `testSubmittingTheFormRenderedAfterAConflictAgainIsStillAConflict` |
+| The acknowledgement box appears only with a conflict, unticked | `testTheAcknowledgementBoxIsOnlyRenderedWithAConflict` |
+| Ticking it → accepted, the user's values are kept | `testAcknowledgingTheConflictSavesTheUserValues` |
+| An acknowledgement only covers the state it was shown for → a later change is a new conflict | `testAnAcknowledgementOnlyCoversTheStateItWasGivenFor` |
+| A forged acknowledgement is ignored | `testAForgedAcknowledgementIsIgnored` |
 | Token missing, empty, not base64, not JSON, malformed → conflict, no exception | `testASubmissionWithoutAUsableTokenIsRejected` |
 | The token does not show up as extra data | `testTheTokenFieldIsNotReportedAsExtraData` |
 | Turned off for one form | `testTheProtectionCanBeTurnedOffForOneForm` |
@@ -173,8 +198,8 @@ actually fail, I disabled the detection by hand (`conflict = false`) and 14 test
   Closing it takes atomicity from the storage, i.e. `#[ORM\Version]` on top, where it is worth it.
 - **The object must be reloaded on every request.** The comparison only means something if the data given
   to the form on submit is the current stored state. A regular controller that calls `find()` does that. An
-  object kept in the session does not, and neither, probably, does a LiveComponent whose form is rehydrated
-  from its props (not verified): the detection would see nothing.
+  object kept in the session does not: the detection would see nothing. A LiveComponent is fine as long as the
+  edited record is a `LiveProp`, which is reloaded from the database on every request (verified in the demo).
 - **It is not a security feature.** A user who wants to bypass it only has to reload the page to get a
   fresh token. It protects users from each other's mistakes, not from someone acting in bad faith, who
   could overwrite the data without this feature anyway.
@@ -189,11 +214,19 @@ actually fail, I disabled the detection by hand (`conflict = false`) and 14 test
   payload too even though it does overwrite the value. Turn the option off for those cases.
 - **Clients that never render the form** (APIs, functional tests that submit an array) have to send the
   token back or turn the option off, exactly as with CSRF.
+- **In a LiveComponent, the conflict shows up on save, not while typing.** The component does detect it on the
+  first re-render, but `ComponentWithFormTrait` clears the errors of every field the user has not touched yet,
+  the form itself included. The acknowledgement box does appear while typing; the explanation comes with the
+  save, which is refused until the box is ticked. The form's own CSRF token is usually off in a LiveComponent,
+  which has its own same-origin check.
 - **Choice fields rendered as checkboxes or radios** (`expanded: true`) report the conflict on the individual
   checkbox rather than on the whole field.
 
 ## 6. Next steps
 
-1. Try the prototype on a real dashboard form, with Doctrine and `EntityType` fields.
-2. Check how it behaves with `ComponentWithFormTrait` (LiveComponent).
+1. Try the prototype on a real dashboard form. Doctrine and `EntityType` are covered by the demo; a real form
+   will tell whether its own types and listeners hold up.
+2. Dispatch an event on every conflict, so that an application can count them before deciding on option A.
 3. If the need is confirmed, add the non-blocking presence indicator (option A) on top.
+4. Give the demo an interactive LiveComponent page (it needs AssetMapper and the LiveComponent JavaScript);
+   only its tests use the component for now.

@@ -29,7 +29,8 @@ The page guides you through the main scenario:
 
 With the protection off, Alice's save goes through, and the history shows her putting the old price back
 without knowing it. With the protection on, her save is refused: the price field says Bob changed it and
-shows his value, her new name is kept, and submitting again is her decision.
+shows his value, and her new name is kept. To save her values anyway, she has to tick a confirmation box;
+sending the form again as is still gets refused.
 
 Also worth trying:
 
@@ -53,6 +54,10 @@ The price is stored in cents, as an integer, so that no float ever holds money.
 
 ## Tests
 
+`tests/Integration/LiveComponentConflictTest.php` runs the same scenario through `ProductLiveForm`, the
+product form as a LiveComponent, which submits the form on every re-render. The component is only used by
+these tests: a page would also need the LiveComponent JavaScript, which the demo does not ship yet.
+
 The application tests replay each scenario with two browsers, Alice and Bob, each with its own cookies and
 session, against a real SQLite database. They run in the demo image, since the PHP on the host may lack
 `pdo_sqlite`:
@@ -61,12 +66,13 @@ session, against a real SQLite database. They run in the demo image, since the P
 docker compose run --rm demo composer qa
 ```
 
-`e2e/record.mjs` plays the main scenario in Chromium, protection off then on, and records it. Each step
+`e2e/record.mjs` plays the main scenario in Chromium, protection off then on (with Alice acknowledging the
+conflict), and records it. Each step
 waits for what it expects to see, so a broken demo fails there instead of producing a misleading video.
 It runs in the Playwright image, against a demo started on port 8091:
 
 ```bash
 DEMO_PORT=8091 docker compose up -d --build
 docker run --rm --network host -u "$(id -u):$(id -g)" -e HOME=/tmp -v "$PWD/e2e":/work -w /work mcr.microsoft.com/playwright:v1.65.1-noble sh -c 'npm ci && node record.mjs'
-ffmpeg -i e2e/output/*.webm -vf "fps=8,scale=960:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=96:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle" ../docs/demo.gif
+ffmpeg -i e2e/output/*.webm -vf "fps=6,scale=880:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=80:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle" ../docs/demo.gif
 ```
