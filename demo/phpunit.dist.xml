@@ -11,6 +11,9 @@
         <testsuite name="Application">
             <directory>tests/Application</directory>
         </testsuite>
+        <testsuite name="Integration">
+            <directory>tests/Integration</directory>
+        </testsuite>
     </testsuites>
     <source>
         <include>
@@ -21,5 +24,6 @@
         <server name="APP_ENV" value="test" force="true"/>
         <env name="APP_ENV" value="test" force="true"/>
         <server name="KERNEL_CLASS" value="App\Kernel"/>
+        <server name="SHELL_VERBOSITY" value="-1"/>
     </php>
 </phpunit>

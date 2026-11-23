@@ -12,7 +12,8 @@ COPY translations /app/translations
 COPY demo /app/demo
 
 WORKDIR /app/demo
-RUN composer install --no-interaction --no-progress --prefer-dist
+RUN composer install --no-interaction --no-progress --prefer-dist \
+    && php bin/console importmap:install
 
 # no-cache: the browser revalidates the stylesheet and script on every load, so an edit shows up at once.
 ENV SERVER_NAME=:80 \

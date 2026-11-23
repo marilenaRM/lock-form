@@ -26,6 +26,9 @@
             {% do form.tags.setRendered %}
         </fieldset>
 
+        {% if form._concurrency_token_acknowledged is defined %}
+            <div class="acknowledgement">{{ form_row(form._concurrency_token_acknowledged) }}</div>
+        {% endif %}
         <button type="submit">{{ 'product.save'|trans }}</button>
     {{ form_end(form) }}
 </main>

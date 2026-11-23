@@ -222,6 +222,26 @@
                 <source>history.form.stock</source>
                 <target>Stock</target>
             </trans-unit>
+            <trans-unit id="demo.mode.label">
+                <source>demo.mode.label</source>
+                <target>Type de formulaire</target>
+            </trans-unit>
+            <trans-unit id="demo.mode.classic">
+                <source>demo.mode.classic</source>
+                <target>Formulaire classique</target>
+            </trans-unit>
+            <trans-unit id="demo.mode.live">
+                <source>demo.mode.live</source>
+                <target>LiveComponent</target>
+            </trans-unit>
+            <trans-unit id="demo.mode.live_note">
+                <source>demo.mode.live_note</source>
+                <target>Chaque formulaire est un LiveComponent : quitter un champ le re-rend et soumet le formulaire au serveur, avant même de cliquer sur Enregistrer.</target>
+            </trans-unit>
+            <trans-unit id="history.form.live">
+                <source>history.form.live</source>
+                <target>Produit (LiveComponent)</target>
+            </trans-unit>
         </body>
     </file>
 </xliff>

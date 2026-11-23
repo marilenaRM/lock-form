@@ -23,10 +23,15 @@ final class ConcurrencyTokenListener implements EventSubscriberInterface
     public const string FIELD_CHANGED_TO_MESSAGE = 'form_concurrency.field_changed_to';
     public const string FIELD_CLEARED_MESSAGE = 'form_concurrency.field_cleared';
     public const string ENTRIES_CHANGED_MESSAGE = 'form_concurrency.entries_changed';
+    public const string ACKNOWLEDGEMENT_LABEL = 'form_concurrency.acknowledge';
 
+    /** What is stored now: set when the form receives its data, then again from the stored state on submit. */
     private ?Fingerprint $current = null;
 
     private bool $conflict = false;
+
+    /** The token the submission was based on, sent back as is while the conflict is not acknowledged. */
+    private ?string $seenToken = null;
 
     /**
      * What each changed field displays now, keyed by path; null when it cannot be shown.
@@ -37,6 +42,7 @@ final class ConcurrencyTokenListener implements EventSubscriberInterface
 
     public function __construct(
         private readonly string $fieldName,
+        private readonly string $acknowledgementFieldName,
         #[\SensitiveParameter]
         private readonly string $secret,
         private readonly ?TranslatorInterface $translator = null,
@@ -75,15 +81,20 @@ final class ConcurrencyTokenListener implements EventSubscriberInterface
         $this->current = Fingerprint::ofForm($form, $this->secret);
 
         $data = $event->getData();
-        $token = \is_array($data) && \is_string($data[$this->fieldName] ?? null) ? $data[$this->fieldName] : null;
-        $seen = null === $token ? null : Fingerprint::fromToken($token);
+        $this->seenToken = self::stringAt($data, $this->fieldName);
+        $seen = null === $this->seenToken ? null : Fingerprint::fromToken($this->seenToken);
+
+        // Acknowledging is ticking the box rendered with a conflict, whose value is the state shown at that moment.
+        // It only counts for that exact state: a change made since then is a new conflict.
+        $acknowledgement = self::stringAt($data, $this->acknowledgementFieldName);
+        $acknowledged = null !== $acknowledgement && hash_equals($this->current->toToken(), $acknowledgement);
 
         $changedPaths = null === $seen ? [] : $seen->changedPaths($this->current);
-        $this->conflict = null === $seen || [] !== $changedPaths;
-        $this->currentValues = [] === $changedPaths ? [] : $this->displayedValues($form, $changedPaths);
+        $this->conflict = !$acknowledged && (null === $seen || [] !== $changedPaths);
+        $this->currentValues = $this->conflict && [] !== $changedPaths ? $this->displayedValues($form, $changedPaths) : [];
 
         if (\is_array($data)) {
-            unset($data[$this->fieldName]);
+            unset($data[$this->fieldName], $data[$this->acknowledgementFieldName]);
             $event->setData($data);
         }
     }
@@ -117,12 +128,25 @@ final class ConcurrencyTokenListener implements EventSubscriberInterface
     }
 
     /**
-     * The token to render: what the form showed when it was last loaded from fresh data.
-     * After a conflict this is the current stored state, so resubmitting means "I reviewed it, overwrite".
+     * The token to render. Without a conflict, it is the state the form shows. After a conflict, it stays the token
+     * the submission was based on: rendering the form again, as a LiveComponent does on every change and reads the
+     * values back, must not settle the conflict. Only the acknowledgement does.
      */
     public function token(): string
     {
+        if ($this->conflict) {
+            return $this->seenToken ?? '';
+        }
+
         return ($this->current ?? throw new \LogicException('The form data has not been set yet.'))->toToken();
+    }
+
+    /**
+     * The value of the acknowledgement box to render with a conflict, or null when there is none to acknowledge.
+     */
+    public function acknowledgementToken(): ?string
+    {
+        return $this->conflict ? $this->current?->toToken() : null;
     }
 
     /**
@@ -131,6 +155,11 @@ final class ConcurrencyTokenListener implements EventSubscriberInterface
     public static function appliesTo(bool $isRoot, bool $compound, string $method): bool
     {
         return $isRoot && $compound && 'GET' !== strtoupper($method);
+    }
+
+    private static function stringAt(mixed $data, string $key): ?string
+    {
+        return \is_array($data) && \is_string($data[$key] ?? null) ? $data[$key] : null;
     }
 
     private function isProtected(FormInterface $form): bool

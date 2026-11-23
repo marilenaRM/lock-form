@@ -10,6 +10,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\DomCrawler\Field\ChoiceFormField;
 use Symfony\Component\DomCrawler\Form;
 
 /**
@@ -62,7 +63,16 @@ final class ConcurrentEditTest extends WebTestCase
         $this->alice->submit($aliceForm);
         self::assertResponseStatusCodeSame(422);
 
-        $this->alice->submit($this->alice->getCrawler()->selectButton('Enregistrer')->form());
+        // Submitting the same form again is not enough: the conflict must be acknowledged.
+        $retry = $this->alice->getCrawler()->selectButton('Enregistrer')->form();
+        $this->alice->submit($retry);
+        self::assertResponseStatusCodeSame(422);
+
+        $acknowledged = $this->alice->getCrawler()->selectButton('Enregistrer')->form();
+        $checkbox = $acknowledged['product[_concurrency_token_acknowledged]'];
+        \assert($checkbox instanceof ChoiceFormField);
+        $checkbox->tick();
+        $this->alice->submit($acknowledged);
 
         self::assertResponseRedirects();
         self::assertSame(['Clavier mécanique sans fil', '95.00'], $this->storedNameAndPrice());
@@ -162,6 +172,9 @@ final class ConcurrentEditTest extends WebTestCase
         yield 'product form as Bob, unprotected' => ['/products/1/edit?as=bob&protection=0'];
         yield 'stock form' => ['/products/1/stock?as=bob'];
         yield 'save history' => ['/products/1/history'];
+        yield 'demo with LiveComponent forms' => ['/?live=1'];
+        yield 'LiveComponent form as Bob' => ['/products/1/live?as=bob'];
+        yield 'LiveComponent form, unprotected' => ['/products/1/live?as=alice&protection=0'];
     }
 
     public function testTheResetButtonPutsTheDemoBackToItsStartingPoint(): void
@@ -173,7 +186,7 @@ final class ConcurrentEditTest extends WebTestCase
         $this->alice->request('GET', '/');
         $this->alice->submit($this->alice->getCrawler()->selectButton('Réinitialiser la démo')->form());
 
-        self::assertResponseRedirects('/?protection=1');
+        self::assertResponseRedirects('/?protection=1&live=0');
         self::assertSame(['Clavier mécanique', '89.90'], $this->storedNameAndPrice());
     }
 

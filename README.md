@@ -25,8 +25,17 @@ return [
 ```
 
 Every root form is now protected, except GET forms (searches, filters). On a conflict the form is invalid, with a global error and an error on
-each field that changed meanwhile, showing what it holds now. Rendering it again carries a fresh token: submitting it again keeps the
-user's values.
+each field that changed meanwhile, showing what it holds now, and a checkbox to save the user's values anyway. Submitting again without ticking
+it is still a conflict. The box is rendered by `form_end()`; to put it next to your submit button:
+
+```twig
+{% if form._concurrency_token_acknowledged is defined %}
+    {{ form_row(form._concurrency_token_acknowledged) }}
+{% endif %}
+```
+
+It works the same way in a LiveComponent using `ComponentWithFormTrait`, as long as the edited record is a
+`LiveProp` (reloaded from the database on every request).
 
 The controller must load the record on every request, which a regular edit action already does:
 

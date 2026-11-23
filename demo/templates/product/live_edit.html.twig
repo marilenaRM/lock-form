@@ -1,0 +1,12 @@
+{% extends 'base.html.twig' %}
+
+{% block body_class %}frame frame-{{ as.value }}{% endblock %}
+
+{% block body %}
+<main>
+    <p class="editing-as">{{ 'demo.editing_as'|trans({'%user%': as.labelKey|trans}) }}
+        <span class="badge-live">{{ 'demo.mode.live'|trans }}</span>
+        {% if not protection %}<span class="badge-off">{{ 'demo.protection.off'|trans }}</span>{% endif %}</p>
+    {{ component('ProductLiveForm', {record: product, as: as, protection: protection}) }}
+</main>
+{% endblock %}

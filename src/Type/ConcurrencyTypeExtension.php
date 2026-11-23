@@ -6,6 +6,7 @@ namespace LockForm\FormConcurrency\Type;
 
 use LockForm\FormConcurrency\EventListener\ConcurrencyTokenListener;
 use Symfony\Component\Form\AbstractTypeExtension;
+use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\FormType;
 use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 use Symfony\Component\Form\FormBuilderInterface;
@@ -35,7 +36,7 @@ final class ConcurrencyTypeExtension extends AbstractTypeExtension
             return;
         }
 
-        $listener = new ConcurrencyTokenListener(self::fieldName($options), $this->secret, $this->translator, self::TRANSLATION_DOMAIN);
+        $listener = new ConcurrencyTokenListener(self::fieldName($options), self::fieldName($options).'_acknowledged', $this->secret, $this->translator, self::TRANSLATION_DOMAIN);
         $builder->setAttribute(self::LISTENER_ATTRIBUTE, $listener);
         $builder->addEventSubscriber($listener);
     }
@@ -56,6 +57,21 @@ final class ConcurrencyTypeExtension extends AbstractTypeExtension
         ]);
 
         $view->children[$fieldName] = $field->createView($view);
+
+        $acknowledgement = $listener->acknowledgementToken();
+        if (null !== $acknowledgement) {
+            $acknowledgementName = $fieldName.'_acknowledged';
+            $checkbox = $form->getConfig()->getFormFactory()->createNamed($acknowledgementName, CheckboxType::class, false, [
+                'block_prefix' => 'concurrency_acknowledgement',
+                'mapped' => false,
+                'required' => false,
+                'value' => $acknowledgement,
+                'label' => ConcurrencyTokenListener::ACKNOWLEDGEMENT_LABEL,
+                'translation_domain' => self::TRANSLATION_DOMAIN,
+            ]);
+
+            $view->children[$acknowledgementName] = $checkbox->createView($view);
+        }
     }
 
     public function configureOptions(OptionsResolver $resolver): void

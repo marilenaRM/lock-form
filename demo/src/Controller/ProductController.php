@@ -101,6 +101,19 @@ final class ProductController extends AbstractController
         return $this->render('product/stock.html.twig', ['form' => $form, 'product' => $product, 'as' => $as]);
     }
 
+    /**
+     * The same form as edit(), as the ProductLiveForm LiveComponent: it re-renders, and submits the form, whenever a
+     * field changes.
+     */
+    #[Route('/products/{id}/live', name: 'product_live_edit', methods: ['GET'])]
+    public function liveEdit(
+        #[MapEntity] Product $product,
+        #[MapQueryParameter] DemoUser $as = DemoUser::Alice,
+        #[MapQueryParameter] bool $protection = true,
+    ): Response {
+        return $this->render('product/live_edit.html.twig', ['product' => $product, 'as' => $as, 'protection' => $protection]);
+    }
+
     #[Route('/products/{id}/history', name: 'product_history', methods: ['GET'])]
     public function history(#[MapEntity] Product $product): Response
     {

@@ -17,7 +17,11 @@ use Symfony\Component\Routing\Attribute\Route;
 final class DemoController extends AbstractController
 {
     #[Route('/', name: 'demo', methods: ['GET'])]
-    public function index(EntityManagerInterface $entityManager, #[MapQueryParameter] bool $protection = true): Response
+    public function index(
+        EntityManagerInterface $entityManager,
+        #[MapQueryParameter] bool $protection = true,
+        #[MapQueryParameter] bool $live = false,
+    ): Response
     {
         $product = $entityManager->createQueryBuilder()
             ->select('product')
@@ -31,16 +35,21 @@ final class DemoController extends AbstractController
             return $this->render('demo/empty.html.twig');
         }
 
-        return $this->render('demo/index.html.twig', ['product' => $product, 'protection' => $protection]);
+        return $this->render('demo/index.html.twig', ['product' => $product, 'protection' => $protection, 'live' => $live]);
     }
 
     #[Route('/reset', name: 'demo_reset', methods: ['POST'])]
-    public function reset(Request $request, DemoReset $reset, #[MapQueryParameter] bool $protection = true): RedirectResponse
+    public function reset(
+        Request $request,
+        DemoReset $reset,
+        #[MapQueryParameter] bool $protection = true,
+        #[MapQueryParameter] bool $live = false,
+    ): RedirectResponse
     {
         if ($this->isCsrfTokenValid('demo_reset', $request->getPayload()->getString('_token'))) {
             $reset();
         }
 
-        return $this->redirectToRoute('demo', ['protection' => $protection ? '1' : '0']);
+        return $this->redirectToRoute('demo', ['protection' => $protection ? '1' : '0', 'live' => $live ? '1' : '0']);
     }
 }
