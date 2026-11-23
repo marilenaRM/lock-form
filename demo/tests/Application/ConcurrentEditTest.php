@@ -24,8 +24,9 @@ final class ConcurrentEditTest extends WebTestCase
 
     protected function setUp(): void
     {
-        $this->alice = self::createClient();
-        $this->bob = new KernelBrowser($this->alice->getKernel());
+        // Both speak French; BrowserKit would otherwise send an English Accept-Language header.
+        $this->alice = self::createClient(server: ['HTTP_ACCEPT_LANGUAGE' => 'fr']);
+        $this->bob = new KernelBrowser($this->alice->getKernel(), ['HTTP_ACCEPT_LANGUAGE' => 'fr']);
 
         $reset = self::getContainer()->get(DemoReset::class);
         \assert($reset instanceof DemoReset);

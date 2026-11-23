@@ -16,7 +16,8 @@ final class LanguageTest extends WebTestCase
 
     protected function setUp(): void
     {
-        $this->browser = self::createClient();
+        // No language preference at all: BrowserKit would otherwise send an English Accept-Language header.
+        $this->browser = self::createClient(server: ['HTTP_ACCEPT_LANGUAGE' => '']);
 
         $reset = self::getContainer()->get(DemoReset::class);
         \assert($reset instanceof DemoReset);
