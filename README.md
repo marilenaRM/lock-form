@@ -66,6 +66,7 @@ Options:
 | `config/packages/form_concurrency.yaml` | `enabled` | `true` |
 | `config/packages/form_concurrency.yaml` | `field_name` | `_concurrency_token` |
 | `config/packages/form_concurrency.yaml` | `conflict_event` | `false` |
+| `config/packages/form_concurrency.yaml` | `test_bypass` | `false` |
 
 To count conflicts, for instance before deciding whether the [presence indicator](#presence-indicator-optional) is worth it, turn on
 `conflict_event`. Each refused submission then dispatches a `ConcurrencyConflictEvent`, once the errors are on
@@ -164,6 +165,39 @@ final class ViewCountIsLastWriteWins implements ConflictDetector
 ```
 
 Outside a Symfony application, pass `detector: $detector` to `FormConcurrencyExtension`.
+
+### In functional tests
+
+A test that posts an array instead of submitting the rendered form sends no token, so it gets a conflict, as it
+would without a CSRF token. Either turn the protection off for the whole test environment:
+
+```yaml
+# config/packages/form_concurrency.yaml
+when@test:
+    form_concurrency:
+        enabled: false
+```
+
+or keep it on, so that tests can still check it, and let the others go through with `test_bypass`:
+
+```yaml
+when@test:
+    form_concurrency:
+        test_bypass: true
+```
+
+```php
+use LockForm\FormConcurrency\Test\BypassConflictDetector;
+
+$client->setServerParameter(BypassConflictDetector::SERVER_PARAMETER, '1'); // every request of this client
+$client->request('POST', '/article/42/edit', $data, server: [BypassConflictDetector::SERVER_PARAMETER => '1']); // one request
+```
+
+The switch is a server parameter rather than a flag on a service: `KernelBrowser` reboots the kernel between two
+requests by default, with a new container, so a flag would be gone by the second request. A new client starts
+without it, so nothing carries over to the next test. A browser cannot send it either, since its headers only
+reach the request as `HTTP_*` server parameters. Do not set it as an environment variable or in a `.env` file,
+though: those end up in the server parameters of every request. And keep `test_bypass` under `when@test`.
 
 ## Presence indicator (optional)
 

@@ -10,6 +10,7 @@ use LockForm\FormConcurrency\Presence\PresenceMarkup;
 use LockForm\FormConcurrency\Presence\PresenceStore;
 use LockForm\FormConcurrency\Presence\PresenceTypeExtension;
 use LockForm\FormConcurrency\Presence\SecurityPresenceIdentity;
+use LockForm\FormConcurrency\Test\BypassConflictDetector;
 use LockForm\FormConcurrency\Type\ConcurrencyTypeExtension;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -27,6 +28,7 @@ final class FormConcurrencyBundle extends AbstractBundle
                 ->booleanNode('enabled')->defaultTrue()->end()
                 ->scalarNode('field_name')->defaultValue('_concurrency_token')->cannotBeEmpty()->end()
                 ->booleanNode('conflict_event')->defaultFalse()->info('Dispatch a ConcurrencyConflictEvent on every conflict.')->end()
+                ->booleanNode('test_bypass')->defaultFalse()->info('Accept every submission of a request with the FORM_CONCURRENCY_BYPASS server parameter. For the test environment only.')->end()
                 ->arrayNode('presence')
                     ->info('A non-blocking "someone else is editing this record" indicator. Off by default.')
                     ->canBeEnabled()
@@ -48,13 +50,19 @@ final class FormConcurrencyBundle extends AbstractBundle
     }
 
     /**
-     * @param array{enabled: bool, field_name: string, conflict_event: bool, presence: array{enabled: bool, cache_pool: string, identity: ?string, interval: int, ttl: int}} $config
+     * @param array{enabled: bool, field_name: string, conflict_event: bool, test_bypass: bool, presence: array{enabled: bool, cache_pool: string, identity: ?string, interval: int, ttl: int}} $config
      */
     public function loadExtension(array $config, ContainerConfigurator $container, ContainerBuilder $builder): void
     {
         $services = $container->services();
 
         $services->set(ConflictDetector::class, FingerprintConflictDetector::class);
+
+        if ($config['test_bypass']) {
+            $services->set(BypassConflictDetector::class)
+                ->decorate(ConflictDetector::class)
+                ->args([service('.inner'), service('request_stack')]);
+        }
 
         $services
             ->set(ConcurrencyTypeExtension::class)

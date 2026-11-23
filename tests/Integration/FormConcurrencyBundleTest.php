@@ -6,6 +6,7 @@ namespace LockForm\FormConcurrency\Tests\Integration;
 
 use LockForm\FormConcurrency\ConcurrencyConflictError;
 use LockForm\FormConcurrency\Event\ConcurrencyConflictEvent;
+use LockForm\FormConcurrency\Test\BypassConflictDetector;
 use LockForm\FormConcurrency\Tests\Fixtures\Article;
 use LockForm\FormConcurrency\Tests\Fixtures\ArticleType;
 use LockForm\FormConcurrency\Tests\Fixtures\Author;
@@ -16,6 +17,8 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\FormInterface;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 final class FormConcurrencyBundleTest extends KernelTestCase
 {
@@ -59,6 +62,43 @@ final class FormConcurrencyBundleTest extends KernelTestCase
         $form = $factory->create(ArticleType::class, $emailChanged);
         $form->submit($payload);
         self::assertFalse($form->isValid(), 'the decorated detector still reports the other fields');
+    }
+
+    /**
+     * What a functional test does when it posts an array: no token, so a conflict unless the bypass is on.
+     *
+     * @param array<string, string> $server
+     */
+    #[TestWith(['test', ['FORM_CONCURRENCY_BYPASS' => '1'], Response::HTTP_UNPROCESSABLE_ENTITY], 'parameter ignored when test_bypass is off')]
+    #[TestWith(['test_bypass', [], Response::HTTP_UNPROCESSABLE_ENTITY], 'test_bypass on, request without the parameter')]
+    #[TestWith(['test_bypass', ['FORM_CONCURRENCY_BYPASS' => '0'], Response::HTTP_UNPROCESSABLE_ENTITY], 'parameter set to false')]
+    #[TestWith(['test_bypass', ['FORM_CONCURRENCY_BYPASS' => '1'], Response::HTTP_OK], 'test_bypass on, request with the parameter')]
+    public function testAFunctionalTestCanPostARawArrayWithTheBypass(string $environment, array $server, int $expected): void
+    {
+        $kernel = self::bootKernel(['environment' => $environment]);
+
+        $response = $kernel->handle(self::rawPost($server));
+
+        self::assertSame($expected, $response->getStatusCode(), (string) $response->getContent());
+    }
+
+    public function testTheBypassOnlyCoversTheRequestThatCarriesIt(): void
+    {
+        $kernel = self::bootKernel(['environment' => 'test_bypass']);
+
+        self::assertSame(Response::HTTP_OK, $kernel->handle(self::rawPost([BypassConflictDetector::SERVER_PARAMETER => '1']))->getStatusCode());
+        self::assertSame(Response::HTTP_UNPROCESSABLE_ENTITY, $kernel->handle(self::rawPost([]))->getStatusCode(), 'the same kernel, the next request');
+    }
+
+    /**
+     * @param array<string, string> $server
+     */
+    private static function rawPost(array $server): Request
+    {
+        return Request::create('/article/edit', 'POST', ['article' => [
+            'title' => 'Posted as an array',
+            'author' => ['name' => 'Ada', 'email' => 'ada@example.com'],
+        ]], server: $server);
     }
 
     #[TestWith(['test', 0])]
