@@ -1,0 +1,45 @@
+{
+    "name": "lock-form/form-concurrency",
+    "description": "Detects concurrent edits on Symfony forms with an automatic, storage-agnostic fingerprint token",
+    "type": "symfony-bundle",
+    "license": "MIT",
+    "require": {
+        "php": ">=8.3",
+        "symfony/config": "^7.3",
+        "symfony/dependency-injection": "^7.3",
+        "symfony/form": "^7.3",
+        "symfony/http-kernel": "^7.3",
+        "symfony/translation-contracts": "^3.5"
+    },
+    "require-dev": {
+        "phpstan/phpstan": "^2.1",
+        "phpstan/phpstan-phpunit": "^2.0",
+        "phpunit/phpunit": "^12.0",
+        "symfony/framework-bundle": "^7.3",
+        "symfony/translation": "^7.3"
+    },
+    "autoload": {
+        "psr-4": {
+            "LockForm\\FormConcurrency\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "LockForm\\FormConcurrency\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "phpstan/extension-installer": false
+        }
+    },
+    "scripts": {
+        "stan": "phpstan analyse --memory-limit=512M",
+        "test": "phpunit",
+        "qa": [
+            "@stan",
+            "@test"
+        ]
+    }
+}
