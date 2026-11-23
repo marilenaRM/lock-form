@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace LockForm\FormConcurrency\Tests\Unit\Type;
 
+use LockForm\FormConcurrency\ConcurrencyConflictError;
+use LockForm\FormConcurrency\ConflictDetector;
 use LockForm\FormConcurrency\EventListener\ConcurrencyTokenListener;
+use LockForm\FormConcurrency\Fingerprint;
+use LockForm\FormConcurrency\FingerprintConflictDetector;
 use LockForm\FormConcurrency\FormConcurrencyExtension;
 use LockForm\FormConcurrency\Tests\Fixtures\Article;
 use LockForm\FormConcurrency\Tests\Fixtures\ArticleStore;
@@ -23,6 +27,8 @@ use Symfony\Component\Form\FormInterface;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\Forms;
+use Symfony\Component\OptionsResolver\Exception\InvalidOptionsException;
+use Symfony\Component\Translation\TranslatableMessage;
 
 final class ConcurrencyTypeExtensionTest extends TestCase
 {
@@ -82,6 +88,102 @@ final class ConcurrencyTypeExtensionTest extends TestCase
         self::assertSame([ConcurrencyTokenListener::FIELD_CHANGED_TO_MESSAGE], $this->messagesOf($form->get('price')));
         self::assertSame(['15.00'], $this->currentValuesOf($form->get('price')));
         self::assertSame([], $this->messagesOf($form->get('title')));
+    }
+
+    public function testTheGlobalErrorCanBeToldApartFromTheFieldErrors(): void
+    {
+        $payload = FormRoundTrip::payloadOf($this->openForm());
+        $this->store->changeConcurrently(static function (Article $article): void {
+            $article->price = 15.0;
+        });
+
+        $form = $this->submitOnFreshLoad($payload);
+
+        $global = iterator_to_array($form->getErrors(), false);
+        self::assertCount(1, $global);
+        self::assertInstanceOf(ConcurrencyConflictError::class, $global[0]);
+        self::assertSame(ConcurrencyTokenListener::CONFLICT_MESSAGE, $global[0]->getMessageTemplate());
+        self::assertSame([], $global[0]->getMessageParameters());
+
+        $conflictErrors = array_filter(iterator_to_array($form->getErrors(true), false), static fn (mixed $error): bool => $error instanceof ConcurrencyConflictError);
+        self::assertCount(1, $conflictErrors, 'the error on the price field is a plain FormError');
+    }
+
+    public function testTheGlobalMessageCanBeChangedForOneForm(): void
+    {
+        $payload = FormRoundTrip::payloadOf($this->openForm());
+        $this->store->changeConcurrently(static function (Article $article): void {
+            $article->price = 15.0;
+        });
+
+        $form = $this->factory->create(ArticleType::class, $this->store->load(), ['concurrency_message' => 'app.article_conflict']);
+        $form->submit($payload);
+
+        self::assertSame(['app.article_conflict'], $this->messagesOf($form));
+        self::assertSame([ConcurrencyTokenListener::FIELD_CHANGED_TO_MESSAGE], $this->messagesOf($form->get('price')), 'the field errors are unchanged');
+    }
+
+    public function testTheGlobalMessageCanBeATranslatable(): void
+    {
+        $payload = FormRoundTrip::payloadOf($this->openForm());
+        $this->store->changeConcurrently(static function (Article $article): void {
+            $article->price = 15.0;
+        });
+
+        $form = $this->factory->create(ArticleType::class, $this->store->load(), [
+            'concurrency_message' => new TranslatableMessage('Someone changed "%title%".', ['%title%' => 'Optimistic locking']),
+        ]);
+        $form->submit($payload);
+
+        $error = $form->getErrors()[0];
+        self::assertInstanceOf(ConcurrencyConflictError::class, $error);
+        self::assertSame('Someone changed "Optimistic locking".', $error->getMessage(), 'its parameters are replaced, even without a translator');
+        self::assertSame('Someone changed "%title%".', $error->getMessageTemplate());
+        self::assertSame(['%title%' => 'Optimistic locking'], $error->getMessageParameters());
+    }
+
+    public function testTheGlobalMessageMustBeAStringOrATranslatable(): void
+    {
+        $this->expectException(InvalidOptionsException::class);
+
+        $this->factory->create(ArticleType::class, $this->store->load(), ['concurrency_message' => 42]);
+    }
+
+    public function testADetectorDecidesWhatIsAConflict(): void
+    {
+        // A decorator, as an application would register: concurrent changes to the price are last write wins.
+        $priceIsLastWriteWins = new class(new FingerprintConflictDetector()) implements ConflictDetector {
+            public function __construct(private readonly ConflictDetector $inner)
+            {
+            }
+
+            public function changedPaths(FormInterface $form, ?Fingerprint $seen, Fingerprint $current): ?array
+            {
+                $changed = $this->inner->changedPaths($form, $seen, $current);
+
+                return null === $changed ? null : array_values(array_diff($changed, ['price']));
+            }
+        };
+        $factory = Forms::createFormFactoryBuilder()
+            ->addExtension(new FormConcurrencyExtension('test-secret', detector: $priceIsLastWriteWins))
+            ->getFormFactory();
+
+        $payload = FormRoundTrip::payloadOf($factory->create(ArticleType::class, $this->store->load()));
+        $this->store->changeConcurrently(static function (Article $article): void {
+            $article->price = 15.0;
+        });
+        $form = $factory->create(ArticleType::class, $this->store->load());
+        $form->submit($payload);
+        self::assertTrue($form->isValid(), (string) $form->getErrors(true));
+
+        $this->store->changeConcurrently(static function (Article $article): void {
+            $article->title = 'Saved by someone else';
+        });
+        $form = $factory->create(ArticleType::class, $this->store->load());
+        $form->submit($payload);
+        self::assertFalse($form->isValid());
+        self::assertSame([ConcurrencyTokenListener::FIELD_CHANGED_TO_MESSAGE], $this->messagesOf($form->get('title')));
+        self::assertSame([], $this->messagesOf($form->get('price')));
     }
 
     public function testAConcurrentChangeInsideAnEmbeddedFormIsReportedOnTheNestedField(): void

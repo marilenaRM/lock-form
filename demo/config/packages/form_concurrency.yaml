@@ -7,6 +7,8 @@ form_concurrency:
         identity: App\Presence\DemoPresenceIdentity
 
 when@test:
+    form_concurrency:
+        test_bypass: true
     services:
         App\Tests\Integration\ConflictEventRecorder:
             tags: [kernel.event_listener]

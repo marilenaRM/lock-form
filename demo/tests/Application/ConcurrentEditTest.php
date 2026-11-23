@@ -7,6 +7,7 @@ namespace App\Tests\Application;
 use App\Entity\Product;
 use App\Service\DemoReset;
 use Doctrine\ORM\EntityManagerInterface;
+use LockForm\FormConcurrency\Test\BypassConflictDetector;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -162,6 +163,24 @@ final class ConcurrentEditTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(422);
         self::assertSelectorTextContains('form', 'Tags : des éléments ont été ajoutés ou supprimés par quelqu’un d’autre');
+    }
+
+    public function testATestThatPostsAnArrayWithoutTheTokenGoesThroughWithTheBypass(): void
+    {
+        $form = $this->openProductForm($this->alice, 'alice', protection: true);
+        $values = $form->getPhpValues();
+        \assert(\is_array($values['product']));
+        unset($values['product']['_concurrency_token']);
+        $values['product']['name'] = 'Posted as an array';
+
+        $this->alice->request('POST', $form->getUri(), $values);
+        self::assertResponseStatusCodeSame(422);
+
+        // The kernel reboots between two requests, with a new container: the switch is on the client, so it holds.
+        $this->alice->setServerParameter(BypassConflictDetector::SERVER_PARAMETER, '1');
+        $this->alice->request('POST', $form->getUri(), $values);
+        self::assertResponseRedirects();
+        self::assertSame(['Posted as an array', '89.90'], $this->storedNameAndPrice());
     }
 
     public function testTheGetFilterWorksFromAPlainLinkWithoutAnyToken(): void

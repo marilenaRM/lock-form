@@ -4,16 +4,22 @@ declare(strict_types=1);
 
 namespace LockForm\FormConcurrency\EventListener;
 
+use LockForm\FormConcurrency\ConcurrencyConflictError;
+use LockForm\FormConcurrency\ConflictDetector;
 use LockForm\FormConcurrency\DisplayedValue;
 use LockForm\FormConcurrency\Event\ConcurrencyConflictEvent;
 use LockForm\FormConcurrency\Fingerprint;
+use LockForm\FormConcurrency\FingerprintConflictDetector;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormEvent;
 use Symfony\Component\Form\FormEvents;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\Translation\TranslatableMessage;
+use Symfony\Contracts\Translation\TranslatableInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
+use Symfony\Contracts\Translation\TranslatorTrait;
 
 /**
  * One instance per built form: it carries the fingerprint between the set-data and submit phases of that form only.
@@ -59,6 +65,8 @@ final class ConcurrencyTokenListener implements EventSubscriberInterface
         private readonly ?TranslatorInterface $translator = null,
         private readonly ?string $translationDomain = null,
         private readonly ?EventDispatcherInterface $dispatcher = null,
+        private readonly ConflictDetector $detector = new FingerprintConflictDetector(),
+        private readonly string|TranslatableInterface $conflictMessage = self::CONFLICT_MESSAGE,
     ) {
     }
 
@@ -101,9 +109,10 @@ final class ConcurrencyTokenListener implements EventSubscriberInterface
         $acknowledgement = self::stringAt($data, $this->acknowledgementFieldName);
         $acknowledged = null !== $acknowledgement && hash_equals($this->current->toToken(), $acknowledgement);
 
-        $this->changedPaths = null === $seen ? [] : $seen->changedPaths($this->current);
+        $changedPaths = $this->detector->changedPaths($form, $seen, $this->current);
+        $this->changedPaths = $changedPaths ?? [];
         $this->overwritesNothing = false;
-        $this->conflict = !$acknowledged && (null === $seen || [] !== $this->changedPaths);
+        $this->conflict = !$acknowledged && (null === $changedPaths || [] !== $changedPaths);
         $this->currentValues = $this->conflict && [] !== $this->changedPaths ? $this->displayedValues($form, $this->changedPaths) : [];
 
         if (\is_array($data)) {
@@ -134,7 +143,7 @@ final class ConcurrencyTokenListener implements EventSubscriberInterface
             }
         }
 
-        $form->addError($this->error(self::CONFLICT_MESSAGE));
+        $form->addError($this->conflictError());
 
         $reported = [];
         foreach ($this->currentValues as $path => $value) {
@@ -256,6 +265,24 @@ final class ConcurrencyTokenListener implements EventSubscriberInterface
         $domain = $config->getOption('translation_domain');
 
         return null === $this->translator || false === $domain ? $label : $this->translator->trans($label, [], \is_string($domain) ? $domain : null);
+    }
+
+    private function conflictError(): ConcurrencyConflictError
+    {
+        $message = $this->conflictMessage;
+        if (\is_string($message)) {
+            return new ConcurrencyConflictError($this->translator?->trans($message, [], $this->translationDomain) ?? $message, $message);
+        }
+
+        // Without a translator, still replace its parameters, as the error messages below do.
+        $text = $message->trans($this->translator ?? new class implements TranslatorInterface {
+            use TranslatorTrait;
+        });
+
+        // Keep the key as the template, like the other errors, when the translatable exposes it.
+        return $message instanceof TranslatableMessage
+            ? new ConcurrencyConflictError($text, $message->getMessage(), $message->getParameters())
+            : new ConcurrencyConflictError($text);
     }
 
     /**
