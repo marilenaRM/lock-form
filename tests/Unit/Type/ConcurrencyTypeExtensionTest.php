@@ -176,6 +176,101 @@ final class ConcurrencyTypeExtensionTest extends TestCase
         }];
     }
 
+    /**
+     * @param \Closure(Article): void $change
+     * @param array<string, mixed>    $submitted
+     */
+    #[DataProvider('newValuesTypedByTheUser')]
+    public function testAFieldChangedMeanwhileIsNotAConflictWhenTheUserSubmitsItsNewValue(\Closure $change, array $submitted): void
+    {
+        $payload = FormRoundTrip::payloadOf($this->openForm());
+        $payload['title'] = 'Mine';
+        $payload = array_replace_recursive($payload, $submitted);
+        $this->store->changeConcurrently($change);
+
+        $form = $this->submitOnFreshLoad($payload);
+
+        self::assertTrue($form->isValid(), (string) $form->getErrors(true));
+        self::assertSame('Mine', $this->article($form)->title, 'the other fields of the user are saved');
+        self::assertArrayNotHasKey('_concurrency_token_acknowledged', $form->createView()->children);
+    }
+
+    /**
+     * @return iterable<string, array{\Closure(Article): void, array<string, mixed>}>
+     */
+    public static function newValuesTypedByTheUser(): iterable
+    {
+        $price = static function (Article $article): void {
+            $article->price = 15.0;
+        };
+        yield 'as displayed' => [$price, ['price' => '15.00']];
+        yield 'formatted differently' => [$price, ['price' => '15']];
+        yield 'in an embedded form, with spaces around' => [static function (Article $article): void {
+            $article->author->email = 'lovelace@example.com';
+        }, ['author' => ['email' => ' lovelace@example.com ']]];
+        yield 'related object' => [static function (Article $article): void {
+            $article->category = new Category(2, 'Tutorial');
+        }, ['category' => '2']];
+        yield 'checkbox' => [static function (Article $article): void {
+            $article->featured = true;
+        }, ['featured' => '1']];
+        yield 'collection entry added by both' => [static function (Article $article): void {
+            $article->tags[] = 'doctrine';
+        }, ['tags' => ['2' => 'doctrine']]];
+    }
+
+    public function testOnlyTheFieldsWhoseNewValueTheUserDidNotSubmitAreAConflict(): void
+    {
+        $payload = FormRoundTrip::payloadOf($this->openForm());
+        $payload['price'] = '15.00';
+        $this->store->changeConcurrently(static function (Article $article): void {
+            $article->price = 15.0;
+            $article->title = 'Theirs';
+        });
+
+        $form = $this->submitOnFreshLoad($payload);
+
+        self::assertFalse($form->isValid());
+        self::assertSame([ConcurrencyTokenListener::CONFLICT_MESSAGE], $this->messagesOf($form));
+        self::assertSame(['Theirs'], $this->currentValuesOf($form->get('title')));
+        self::assertSame([], $this->messagesOf($form->get('price')));
+    }
+
+    public function testAPartialSubmissionWithoutAFieldChangedMeanwhileIsNotAConflict(): void
+    {
+        $payload = FormRoundTrip::payloadOf($this->openForm());
+        unset($payload['price']);
+        $payload['title'] = 'Mine';
+        $this->store->changeConcurrently(static function (Article $article): void {
+            $article->price = 15.0;
+        });
+
+        $form = $this->openForm();
+        $form->submit($payload, false);
+
+        self::assertTrue($form->isValid(), (string) $form->getErrors(true));
+        self::assertSame(15.0, $this->article($form)->price, 'the price someone else saved is kept');
+    }
+
+    public function testAValueTypedAfterASubmissionThatOverwroteNothingIsStillAConflict(): void
+    {
+        $payload = FormRoundTrip::payloadOf($this->openForm());
+        $payload['price'] = '15.00';
+        $this->store->changeConcurrently(static function (Article $article): void {
+            $article->price = 15.0;
+        });
+        $accepted = $this->submitOnFreshLoad($payload);
+        self::assertTrue($accepted->isValid());
+
+        // What a LiveComponent sends on the next change: the re-rendered form, with another value typed in.
+        $payload = FormRoundTrip::payloadOf($accepted);
+        $payload['price'] = '16.00';
+        $form = $this->submitOnFreshLoad($payload);
+
+        self::assertFalse($form->isValid());
+        self::assertSame(['15.00'], $this->currentValuesOf($form->get('price')));
+    }
+
     public function testEntriesAddedOrRemovedByTheUserInACollectionAreNotAConflict(): void
     {
         $payload = FormRoundTrip::payloadOf($this->openForm());

@@ -96,6 +96,33 @@ final class ConcurrencyConflictEventTest extends TestCase
         self::assertSame($this->dispatched[0][0]->seenToken, $this->dispatched[1][0]->seenToken);
     }
 
+    public function testOnlyTheFieldsTheUserDidNotSetToTheirCurrentValueAreDispatched(): void
+    {
+        $payload = FormRoundTrip::payloadOf($this->openForm());
+        $payload['price'] = '15.00';
+        $this->store->changeConcurrently(static function (Article $article): void {
+            $article->price = 15.0;
+            $article->author->email = 'grace@example.com';
+        });
+
+        $this->submitOnFreshLoad($payload);
+
+        self::assertCount(1, $this->dispatched);
+        self::assertSame(['author.email'], $this->dispatched[0][0]->changedPaths);
+    }
+
+    public function testNothingIsDispatchedWhenTheUserSubmitsTheCurrentValues(): void
+    {
+        $payload = FormRoundTrip::payloadOf($this->openForm());
+        $payload['price'] = '15.00';
+        $this->store->changeConcurrently(static function (Article $article): void {
+            $article->price = 15.0;
+        });
+
+        self::assertTrue($this->submitOnFreshLoad($payload)->isValid());
+        self::assertSame([], $this->dispatched);
+    }
+
     private function openForm(): FormInterface
     {
         return $this->factory->create(ArticleType::class, $this->store->load());

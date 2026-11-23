@@ -79,6 +79,27 @@ final class ConcurrentEditTest extends WebTestCase
         self::assertSame(['Clavier mécanique sans fil', '95.00'], $this->storedNameAndPrice());
     }
 
+    public function testAliceCanSaveWithoutAcknowledgingOnceSheTakesBobPrice(): void
+    {
+        $aliceForm = $this->openProductForm($this->alice, 'alice', protection: true);
+        $bobForm = $this->openProductForm($this->bob, 'bob', protection: true);
+        $bobForm['product[priceInCents]'] = '99,00';
+        $this->bob->submit($bobForm);
+
+        $aliceForm['product[name]'] = 'Clavier mécanique sans fil';
+        $aliceForm['product[priceInCents]'] = '95,00';
+        $this->alice->submit($aliceForm);
+        self::assertResponseStatusCodeSame(422);
+
+        // She reads Bob's price in the error and types it in: her save overwrites nothing, no box to tick.
+        $retry = $this->alice->getCrawler()->selectButton('Enregistrer')->form();
+        $retry['product[priceInCents]'] = '99,00';
+        $this->alice->submit($retry);
+
+        self::assertResponseRedirects();
+        self::assertSame(['Clavier mécanique sans fil', '99.00'], $this->storedNameAndPrice());
+    }
+
     public function testWithoutTheProtectionAliceSilentlyPutsTheOldPriceBack(): void
     {
         $aliceForm = $this->openProductForm($this->alice, 'alice', protection: false);

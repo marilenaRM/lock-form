@@ -26,7 +26,8 @@ return [
 
 Every root form is now protected, except GET forms (searches, filters). On a conflict the form is invalid, with a global error and an error on
 each field that changed meanwhile, showing what it holds now, and a checkbox to save the user's values anyway. Submitting again without ticking
-it is still a conflict. The box is rendered by `form_end()`; to put it next to your submit button:
+it is still a conflict. A field the user sets to the value it holds now is no longer a conflict, since saving it overwrites
+nothing: if no other field is, the save goes through without the box. The box is rendered by `form_end()`; to put it next to your submit button:
 
 ```twig
 {% if form._concurrency_token_acknowledged is defined %}

@@ -4,7 +4,7 @@
         <body>
             <trans-unit id="form_concurrency.conflict">
                 <source>form_concurrency.conflict</source>
-                <target>Someone else saved this record while you were editing it. The fields marked below were changed: review them, then tick the confirmation box to save your values anyway.</target>
+                <target>Someone else saved this record while you were editing it. The fields marked below were changed: take their current value, or tick the confirmation box to save your values anyway.</target>
             </trans-unit>
             <trans-unit id="form_concurrency.field_changed">
                 <source>form_concurrency.field_changed</source>

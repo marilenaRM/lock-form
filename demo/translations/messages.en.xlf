@@ -98,6 +98,10 @@
                 <source>demo.scenarios.same_value</source>
                 <target>Bob saves without changing anything: Alice is not bothered.</target>
             </trans-unit>
+            <trans-unit id="demo.scenarios.take_value">
+                <source>demo.scenarios.take_value</source>
+                <target>Alice, refused, types in Bob’s price and saves again: nothing is overwritten, so she does not need to tick the box.</target>
+            </trans-unit>
             <trans-unit id="demo.scenarios.tag">
                 <source>demo.scenarios.tag</source>
                 <target>Bob adds a tag: Alice is told the tag list changed.</target>
