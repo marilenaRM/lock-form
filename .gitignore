@@ -3,3 +3,5 @@
 /.phpunit.cache/
 /.phpstan.cache/
 /var/
+# Written by the test kernel, whose project directory is the bundle.
+/config/reference.php

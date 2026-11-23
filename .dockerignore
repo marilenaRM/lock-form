@@ -3,6 +3,7 @@
 .mcp.json
 vendor
 var
+config/reference.php
 .phpunit.cache
 .phpstan.cache
 demo/vendor
