@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace LockForm\FormConcurrency\Tests\Integration;
 
+use LockForm\FormConcurrency\ConcurrencyConflictError;
 use LockForm\FormConcurrency\Event\ConcurrencyConflictEvent;
 use LockForm\FormConcurrency\Tests\Fixtures\Article;
 use LockForm\FormConcurrency\Tests\Fixtures\ArticleType;
@@ -38,6 +39,26 @@ final class FormConcurrencyBundleTest extends KernelTestCase
         self::assertFalse($form->isValid());
         self::assertStringStartsWith('Quelqu’un d’autre a enregistré cette fiche', self::messagesOf($form)[0] ?? '');
         self::assertSame(['Modifié par quelqu’un d’autre depuis l’ouverture du formulaire. Valeur actuelle : Saved by someone else'], self::messagesOf($form->get('title')));
+        self::assertInstanceOf(ConcurrencyConflictError::class, $form->getErrors()[0]);
+    }
+
+    public function testTheConflictDetectorCanBeDecorated(): void
+    {
+        self::bootKernel(['environment' => 'decorated']);
+        $factory = $this->formFactory();
+        $payload = FormRoundTrip::payloadOf($factory->create(ArticleType::class, self::article()));
+
+        $titleChanged = self::article();
+        $titleChanged->title = 'Saved by someone else';
+        $form = $factory->create(ArticleType::class, $titleChanged);
+        $form->submit($payload);
+        self::assertTrue($form->isValid(), 'the decorator makes the title last write wins');
+
+        $emailChanged = self::article();
+        $emailChanged->author->email = 'lovelace@example.com';
+        $form = $factory->create(ArticleType::class, $emailChanged);
+        $form->submit($payload);
+        self::assertFalse($form->isValid(), 'the decorated detector still reports the other fields');
     }
 
     #[TestWith(['test', 0])]

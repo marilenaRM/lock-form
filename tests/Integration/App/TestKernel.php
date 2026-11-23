@@ -46,6 +46,11 @@ final class TestKernel extends Kernel
             $container->extension('form_concurrency', ['conflict_event' => true]);
         }
 
+        // The "decorated" environment decorates the conflict detector the way an application would, with #[AsDecorator].
+        if ('decorated' === $this->environment) {
+            $container->services()->set(TitleIsLastWriteWins::class)->autowire()->autoconfigure();
+        }
+
         // Nothing in this kernel injects the form factory, so the container would otherwise remove it.
         $container->services()->alias('test.form.factory', 'form.factory')->public();
         $container->services()->alias('test.event_dispatcher', 'event_dispatcher')->public();

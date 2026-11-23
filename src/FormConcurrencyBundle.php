@@ -54,6 +54,8 @@ final class FormConcurrencyBundle extends AbstractBundle
     {
         $services = $container->services();
 
+        $services->set(ConflictDetector::class, FingerprintConflictDetector::class);
+
         $services
             ->set(ConcurrencyTypeExtension::class)
                 ->args([
@@ -62,6 +64,7 @@ final class FormConcurrencyBundle extends AbstractBundle
                     $config['enabled'],
                     $config['field_name'],
                     $config['conflict_event'] ? service('event_dispatcher') : null,
+                    service(ConflictDetector::class),
                 ])
                 ->tag('form.type_extension');
 

@@ -21,11 +21,12 @@ final class FormConcurrencyExtension extends AbstractExtension
         private readonly ?TranslatorInterface $translator = null,
         private readonly bool $defaultEnabled = true,
         private readonly ?EventDispatcherInterface $dispatcher = null,
+        private readonly ConflictDetector $detector = new FingerprintConflictDetector(),
     ) {
     }
 
     protected function loadTypeExtensions(): array
     {
-        return [new ConcurrencyTypeExtension($this->secret, $this->translator, $this->defaultEnabled, dispatcher: $this->dispatcher)];
+        return [new ConcurrencyTypeExtension($this->secret, $this->translator, $this->defaultEnabled, dispatcher: $this->dispatcher, detector: $this->detector)];
     }
 }

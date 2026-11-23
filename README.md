@@ -62,6 +62,7 @@ Options:
 |---|---|---|
 | form | `concurrency_protection` | `true` |
 | form | `concurrency_field_name` | `_concurrency_token` |
+| form | `concurrency_message` | `form_concurrency.conflict` |
 | `config/packages/form_concurrency.yaml` | `enabled` | `true` |
 | `config/packages/form_concurrency.yaml` | `field_name` | `_concurrency_token` |
 | `config/packages/form_concurrency.yaml` | `conflict_event` | `false` |
@@ -119,6 +120,12 @@ session and the URL in the key above. An acknowledged save is not a conflict and
 
 Messages use the `form_concurrency` translation domain (English and French provided).
 
+The global error is a `ConcurrencyConflictError`, a `FormError` subclass, so a template or a controller can tell
+it apart from the other errors, to show it as an alert or a flash message. The errors on each changed field stay
+plain `FormError`s, like any validation error next to its field. To change the global message of one form, set
+`concurrency_message` to another key of the `form_concurrency` domain, or to a `TranslatableInterface` such as
+`new TranslatableMessage('article.conflict', [], 'admin')`.
+
 Outside a Symfony application:
 
 ```php
@@ -128,6 +135,35 @@ $factory = Forms::createFormFactoryBuilder()
 ```
 
 Pass `dispatcher: $eventDispatcher` to `FormConcurrencyExtension` to get the conflict event there too.
+
+### Changing what counts as a conflict
+
+The decision is a stateless `ConflictDetector` service: from the fingerprint the user saw and the one of the
+stored state, it returns the paths changed meanwhile, `[]` to accept the submission, or `null` to refuse it
+without a field to report (no usable token). Decorate it, for instance to let the last write win on a field:
+
+```php
+use LockForm\FormConcurrency\ConflictDetector;
+use LockForm\FormConcurrency\Fingerprint;
+use Symfony\Component\DependencyInjection\Attribute\AsDecorator;
+use Symfony\Component\DependencyInjection\Attribute\AutowireDecorated;
+use Symfony\Component\Form\FormInterface;
+
+#[AsDecorator(ConflictDetector::class)]
+final class ViewCountIsLastWriteWins implements ConflictDetector
+{
+    public function __construct(#[AutowireDecorated] private readonly ConflictDetector $inner) {}
+
+    public function changedPaths(FormInterface $form, ?Fingerprint $seen, Fingerprint $current): ?array
+    {
+        $changed = $this->inner->changedPaths($form, $seen, $current);
+
+        return null === $changed ? null : array_values(array_diff($changed, ['viewCount']));
+    }
+}
+```
+
+Outside a Symfony application, pass `detector: $detector` to `FormConcurrencyExtension`.
 
 ## Presence indicator (optional)
 

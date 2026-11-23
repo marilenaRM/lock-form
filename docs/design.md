@@ -189,6 +189,12 @@ count each conflict once, count distinct (session, URL, `seenToken`) triples. A 
 save is not a conflict and dispatches nothing, and neither is a save where the user took the current value of
 every changed field. When they took some of them, the event only carries the others.
 
+Two extension points sit around this. The global error is a `ConcurrencyConflictError`, so that an application
+can show it apart from the field errors, which stay plain `FormError`s; its message can be changed per form with
+`concurrency_message`. Which fields count as changed is decided by a `ConflictDetector` service, stateless and
+shared by every form, so that it can be decorated; the listener keeps the per-form state and is still created for
+each form.
+
 ## 4. What the tests cover
 
 `composer qa` passes: PHPStan at level 9 with no errors, and 152 green tests. To make sure the tests can
@@ -225,7 +231,9 @@ actually fail, I disabled the detection by hand (`conflict = false`) and 25 test
 | Dependent field rebuilt in `PRE_SUBMIT` → no false conflict | `testAFieldRebuiltFromTheSubmittedValuesIsNotAConflict` |
 | Token round trip, and detection of a single changed field, over 50 generated forms (fixed seed, invalid UTF-8 included) | `FingerprintTest` |
 | Conflict event: changed paths, dispatched once the errors are on the form, the same `seenToken` for every refusal of one edit, nothing for an acknowledged one | `ConcurrencyConflictEventTest` |
-| Bundle: protection without touching the type, messages translated into French, conflict event only when turned on | `FormConcurrencyBundleTest` |
+| Global error told apart from field errors, its message changed per form (key or translatable) | `testTheGlobalErrorCanBeToldApartFromTheFieldErrors`, `testTheGlobalMessageCanBeChangedForOneForm` |
+| A detector decides what is a conflict | `testADetectorDecidesWhatIsAConflict` |
+| Bundle: protection without touching the type, messages translated into French, conflict event only when turned on, detector decorated with `#[AsDecorator]` | `FormConcurrencyBundleTest` |
 
 ## 5. Known limits
 
