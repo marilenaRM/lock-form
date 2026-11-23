@@ -44,6 +44,11 @@ final class FormRoundTrip
         }
 
         if ([] === $view->children && !($view->vars['compound'] ?? false)) {
+            // A browser only sends a checkbox when it is checked.
+            if (\array_key_exists('checked', $view->vars)) {
+                return true === $view->vars['checked'] ? $view->vars['value'] : null;
+            }
+
             return $view->vars['value'];
         }
 

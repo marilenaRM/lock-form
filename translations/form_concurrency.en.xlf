@@ -10,6 +10,18 @@
                 <source>form_concurrency.field_changed</source>
                 <target>Changed by someone else since you opened the form.</target>
             </trans-unit>
+            <trans-unit id="form_concurrency.field_changed_to">
+                <source>form_concurrency.field_changed_to</source>
+                <target>Changed by someone else since you opened the form. Current value: {{ value }}</target>
+            </trans-unit>
+            <trans-unit id="form_concurrency.field_cleared">
+                <source>form_concurrency.field_cleared</source>
+                <target>Cleared by someone else since you opened the form.</target>
+            </trans-unit>
+            <trans-unit id="form_concurrency.entries_changed">
+                <source>form_concurrency.entries_changed</source>
+                <target>{{ field }}: entries were added or removed by someone else since you opened the form.</target>
+            </trans-unit>
         </body>
     </file>
 </xliff>

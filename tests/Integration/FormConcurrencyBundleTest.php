@@ -34,7 +34,7 @@ final class FormConcurrencyBundleTest extends KernelTestCase
 
         self::assertFalse($form->isValid());
         self::assertStringStartsWith('Quelqu’un d’autre a enregistré cette fiche', self::messagesOf($form)[0] ?? '');
-        self::assertSame(['Modifié par quelqu’un d’autre depuis l’ouverture du formulaire.'], self::messagesOf($form->get('title')));
+        self::assertSame(['Modifié par quelqu’un d’autre depuis l’ouverture du formulaire. Valeur actuelle : Saved by someone else'], self::messagesOf($form->get('title')));
     }
 
     /**

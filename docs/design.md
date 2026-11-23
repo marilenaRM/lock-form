@@ -114,7 +114,18 @@ offline. The code review of the prototype caught this, and it has been fixed.
 When there is a conflict, the form is invalid and carries:
 
 - a global error (`form_concurrency.conflict`) explaining what happened;
-- an error on each field that changed in the meantime (`form_concurrency.field_changed`).
+- an error on each field that changed in the meantime, saying what that field holds now:
+  `form_concurrency.field_changed_to` with a `{{ value }}` parameter, or `form_concurrency.field_cleared`
+  when someone emptied it.
+
+The current value is the one the field would display, read while the form still holds the stored state,
+just before the submitted values are applied. To get labels and translation domains right, the listener
+renders the form at that point, which only happens when there is a conflict. A choice therefore shows its
+label ("Tutorial") rather than its value ("2"). A field that never renders its value, like a `PasswordType`,
+only gets the plain `form_concurrency.field_changed` message: the conflict must not disclose what the form
+itself hides. Checkboxes and radios get it too, since their rendered value is not what the user sees. An entry added to or removed from a collection meanwhile is not in the submitted collection,
+so the collection itself carries the error, with `form_concurrency.entries_changed`. That message names the
+field (`{{ field }}`), because a collection bubbles its errors up to the top of the form by default.
 
 The form shown again keeps what the user typed and carries a new token, the one for the current state.
 Submitting it again means "I've seen the changes, keep my values", and it goes through. A missing or
@@ -127,20 +138,23 @@ through links (pagination, menus, bookmarks) that carry no token. You can turn i
 
 ## 4. What the tests cover
 
-`composer qa` passes: PHPStan at level 9 with no errors, and 128 green tests. To make sure the tests can
-actually fail, I disabled the detection by hand (`conflict = false`) and 11 tests failed. Moving the
+`composer qa` passes: PHPStan at level 9 with no errors, and 131 green tests. To make sure the tests can
+actually fail, I disabled the detection by hand (`conflict = false`) and 14 tests failed. Moving the
 `PRE_SUBMIT` priority to -1024 makes the dependent-field test fail.
 
 | Case | Test |
 |---|---|
 | Token added to the root form only | `testItAddsTheTokenToTheRootFormOnly` |
 | No concurrent change → accepted | `testASubmissionOnAnUnchangedRecordIsAccepted` |
-| A field of the form changed → global error, plus an error on that field only | `testAConcurrentChangeToAFieldOfTheFormIsReportedOnTheFormAndOnThatField` |
+| A field of the form changed → global error, plus an error on that field only, with its current value | `testAConcurrentChangeToAFieldOfTheFormIsReportedOnTheFormAndOnThatField` |
+| A field emptied meanwhile → reported as cleared | `testAFieldEmptiedConcurrentlyIsReportedAsCleared` |
+| A checkbox toggled meanwhile → reported, without a value | `testACheckboxToggledConcurrentlyIsReportedWithoutAValue` |
+| A field that never renders its value (`PasswordType`) → reported, value not disclosed | `testTheCurrentValueOfAFieldThatNeverRendersItIsNotDisclosed` |
 | A field in an embedded form (`author.email`) | `testAConcurrentChangeInsideAnEmbeddedFormIsReportedOnTheNestedField` |
-| A related object (choice of objects, new instance on every load) | `testAConcurrentChangeToARelatedObjectIsReported` |
+| A related object (choice of objects, new instance on every load), shown by its label | `testAConcurrentChangeToARelatedObjectIsReported` |
 | Property outside the form, disabled field, same value saved again → no conflict | `testAConcurrentChangeTheUserCannotOverwriteIsNotAConflict` |
 | `CollectionType`: entries added and removed by the user → no conflict | `testEntriesAddedOrRemovedByTheUserInACollectionAreNotAConflict` |
-| `CollectionType`: entry added by someone else → conflict | `testAnEntryAddedConcurrentlyToACollectionIsAConflict` |
+| `CollectionType`: entry added by someone else → conflict, reported on the collection | `testAnEntryAddedConcurrentlyToACollectionIsAConflict` |
 | Resubmitting after a conflict → accepted, the user's values are kept | `testResubmittingTheFormRenderedAfterAConflictKeepsTheUserValues` |
 | Token missing, empty, not base64, not JSON, malformed → conflict, no exception | `testASubmissionWithoutAUsableTokenIsRejected` |
 | The token does not show up as extra data | `testTheTokenFieldIsNotReportedAsExtraData` |
@@ -175,12 +189,11 @@ actually fail, I disabled the detection by hand (`conflict = false`) and 11 test
   payload too even though it does overwrite the value. Turn the option off for those cases.
 - **Clients that never render the form** (APIs, functional tests that submit an array) have to send the
   token back or turn the option off, exactly as with CSRF.
-- **The current values are not displayed.** The user knows which fields changed, not how. That is the next
-  UX improvement: put the stored value in the field's error.
+- **Choice fields rendered as checkboxes or radios** (`expanded: true`) report the conflict on the individual
+  checkbox rather than on the whole field.
 
 ## 6. Next steps
 
 1. Try the prototype on a real dashboard form, with Doctrine and `EntityType` fields.
-2. Show the current value next to each conflicting field.
-3. Check how it behaves with `ComponentWithFormTrait` (LiveComponent).
-4. If the need is confirmed, add the non-blocking presence indicator (option A) on top.
+2. Check how it behaves with `ComponentWithFormTrait` (LiveComponent).
+3. If the need is confirmed, add the non-blocking presence indicator (option A) on top.

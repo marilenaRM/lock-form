@@ -44,6 +44,7 @@ final class ConcurrencyTypeExtensionTest extends TestCase
             tags: ['symfony', 'forms'],
             reviewedBy: 'Grace',
             internalNotes: 'draft',
+            accessCode: 'swordfish',
         ));
     }
 
@@ -78,7 +79,8 @@ final class ConcurrencyTypeExtensionTest extends TestCase
 
         self::assertFalse($form->isValid());
         self::assertSame([ConcurrencyTokenListener::CONFLICT_MESSAGE], $this->messagesOf($form));
-        self::assertSame([ConcurrencyTokenListener::FIELD_CHANGED_MESSAGE], $this->messagesOf($form->get('price')));
+        self::assertSame([ConcurrencyTokenListener::FIELD_CHANGED_TO_MESSAGE], $this->messagesOf($form->get('price')));
+        self::assertSame(['15.00'], $this->currentValuesOf($form->get('price')));
         self::assertSame([], $this->messagesOf($form->get('title')));
     }
 
@@ -92,7 +94,44 @@ final class ConcurrencyTypeExtensionTest extends TestCase
         $form = $this->submitOnFreshLoad($payload);
 
         self::assertFalse($form->isValid());
-        self::assertSame([ConcurrencyTokenListener::FIELD_CHANGED_MESSAGE], $this->messagesOf($form->get('author')->get('email')));
+        self::assertSame(['lovelace@example.com'], $this->currentValuesOf($form->get('author')->get('email')));
+    }
+
+    public function testAFieldEmptiedConcurrentlyIsReportedAsCleared(): void
+    {
+        $payload = FormRoundTrip::payloadOf($this->openForm());
+        $this->store->changeConcurrently(static function (Article $article): void {
+            $article->author->name = '';
+        });
+
+        $form = $this->submitOnFreshLoad($payload);
+
+        self::assertSame([ConcurrencyTokenListener::FIELD_CLEARED_MESSAGE], $this->messagesOf($form->get('author')->get('name')));
+    }
+
+    public function testACheckboxToggledConcurrentlyIsReportedWithoutAValue(): void
+    {
+        $payload = FormRoundTrip::payloadOf($this->openForm());
+        $this->store->changeConcurrently(static function (Article $article): void {
+            $article->featured = true;
+        });
+
+        $form = $this->submitOnFreshLoad($payload);
+
+        self::assertSame([ConcurrencyTokenListener::FIELD_CHANGED_MESSAGE], $this->messagesOf($form->get('featured')));
+    }
+
+    public function testTheCurrentValueOfAFieldThatNeverRendersItIsNotDisclosed(): void
+    {
+        $payload = FormRoundTrip::payloadOf($this->openForm());
+        $this->store->changeConcurrently(static function (Article $article): void {
+            $article->accessCode = 'hunter2';
+        });
+
+        $form = $this->submitOnFreshLoad($payload);
+
+        self::assertSame([ConcurrencyTokenListener::FIELD_CHANGED_MESSAGE], $this->messagesOf($form->get('accessCode')));
+        self::assertStringNotContainsString('hunter2', (string) $form->getErrors(true));
     }
 
     public function testAConcurrentChangeToARelatedObjectIsReported(): void
@@ -104,7 +143,7 @@ final class ConcurrencyTypeExtensionTest extends TestCase
 
         $form = $this->submitOnFreshLoad($payload);
 
-        self::assertSame([ConcurrencyTokenListener::FIELD_CHANGED_MESSAGE], $this->messagesOf($form->get('category')));
+        self::assertSame(['Tutorial'], $this->currentValuesOf($form->get('category')), 'the label is shown, not the id');
     }
 
     /**
@@ -158,7 +197,18 @@ final class ConcurrencyTypeExtensionTest extends TestCase
         $form = $this->submitOnFreshLoad($payload);
 
         self::assertFalse($form->isValid());
-        self::assertSame([ConcurrencyTokenListener::CONFLICT_MESSAGE], $this->messagesOf($form));
+        $errorsByOrigin = [];
+        foreach ($form->getErrors(true) as $error) {
+            \assert($error instanceof FormError);
+            $errorsByOrigin[] = [$error->getOrigin()?->getName(), $error->getMessageTemplate()];
+        }
+
+        // The new entry is not in the submitted collection, so the collection carries the error (and bubbles it up, as CollectionType does by default).
+        self::assertSame([
+            ['article', ConcurrencyTokenListener::CONFLICT_MESSAGE],
+            ['tags', ConcurrencyTokenListener::ENTRIES_CHANGED_MESSAGE],
+        ], $errorsByOrigin);
+        self::assertSame('Tags', $this->collectionErrorOf($form)->getMessageParameters()['{{ field }}'] ?? null);
     }
 
     public function testResubmittingTheFormRenderedAfterAConflictKeepsTheUserValues(): void
@@ -309,6 +359,34 @@ final class ConcurrencyTypeExtensionTest extends TestCase
         \assert($article instanceof Article);
 
         return $article;
+    }
+
+    private function collectionErrorOf(FormInterface $form): FormError
+    {
+        foreach ($form->getErrors(true) as $error) {
+            if ($error instanceof FormError && ConcurrencyTokenListener::ENTRIES_CHANGED_MESSAGE === $error->getMessageTemplate()) {
+                return $error;
+            }
+        }
+
+        self::fail('No error was reported on the collection.');
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function currentValuesOf(FormInterface $field): array
+    {
+        $values = [];
+        foreach ($field->getErrors() as $error) {
+            \assert($error instanceof FormError);
+            $value = $error->getMessageParameters()['{{ value }}'] ?? null;
+            if (\is_string($value)) {
+                $values[] = $value;
+            }
+        }
+
+        return $values;
     }
 
     /**
