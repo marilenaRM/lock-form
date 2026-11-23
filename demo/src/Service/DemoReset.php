@@ -27,6 +27,9 @@ final readonly class DemoReset
     public function __invoke(?string $locale = null): Product
     {
 
+        // The caller may have loaded the current product: drop it, or the new rows (same IDs) would collide with it.
+        $this->entityManager->clear();
+
         $schemaTool = new SchemaTool($this->entityManager);
         $metadata = $this->entityManager->getMetadataFactory()->getAllMetadata();
         $schemaTool->dropSchema($metadata);
