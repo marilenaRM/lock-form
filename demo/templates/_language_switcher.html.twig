@@ -1,0 +1,9 @@
+{# Links to the current page in each language; LocaleSubscriber reads ?lang= and remembers the choice. #}
+{% set route = app.request.attributes.get('_route') %}
+{% set route_params = app.request.attributes.get('_route_params', {})|merge(app.request.query.all) %}
+<nav class="toggle" aria-label="{{ 'demo.language.label'|trans }}">
+    {% for locale, name in {fr: 'Français', en: 'English'} %}
+        {% set current = app.request.locale == locale %}
+        <a href="{{ path(route, route_params|merge({lang: locale})) }}" class="toggle-option{{ current ? ' is-active' }}" hreflang="{{ locale }}" lang="{{ locale }}" {% if current %}aria-current="true"{% endif %}>{{ name }}</a>
+    {% endfor %}
+</nav>

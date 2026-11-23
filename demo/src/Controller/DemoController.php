@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Entity\Product;
+use App\Entity\SaveLog;
 use App\Service\DemoReset;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -18,7 +19,9 @@ final class DemoController extends AbstractController
 {
     #[Route('/', name: 'demo', methods: ['GET'])]
     public function index(
+        Request $request,
         EntityManagerInterface $entityManager,
+        DemoReset $reset,
         #[MapQueryParameter] bool $protection = true,
         #[MapQueryParameter] bool $live = false,
     ): Response
@@ -35,6 +38,13 @@ final class DemoController extends AbstractController
             return $this->render('demo/empty.html.twig');
         }
 
+        // Until someone saves, the starting product follows the language of the page, so that switching to English
+        // does not leave a French product in the forms.
+        $locale = $request->getLocale();
+        if (!$reset->isStartingProductIn($product, $locale) && 0 === $entityManager->getRepository(SaveLog::class)->count([])) {
+            $product = $reset($locale);
+        }
+
         return $this->render('demo/index.html.twig', ['product' => $product, 'protection' => $protection, 'live' => $live]);
     }
 
@@ -47,7 +57,7 @@ final class DemoController extends AbstractController
     ): RedirectResponse
     {
         if ($this->isCsrfTokenValid('demo_reset', $request->getPayload()->getString('_token'))) {
-            $reset();
+            $reset($request->getLocale());
         }
 
         return $this->redirectToRoute('demo', ['protection' => $protection ? '1' : '0', 'live' => $live ? '1' : '0']);

@@ -2,6 +2,7 @@
 
 {% block body %}
 <main class="page-narrow">
+    {{ include('_language_switcher.html.twig') }}
     <h1>{{ 'demo.title'|trans }}</h1>
     <p>{{ 'demo.empty'|trans }}</p>
     <form method="post" action="{{ path('demo_reset') }}">

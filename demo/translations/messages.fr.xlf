@@ -242,6 +242,26 @@
                 <source>history.form.live</source>
                 <target>Produit (LiveComponent)</target>
             </trans-unit>
+            <trans-unit id="demo.language.label">
+                <source>demo.language.label</source>
+                <target>Langue de la démo</target>
+            </trans-unit>
+            <trans-unit id="seed.category.accessories">
+                <source>seed.category.accessories</source>
+                <target>Accessoires</target>
+            </trans-unit>
+            <trans-unit id="seed.category.peripherals">
+                <source>seed.category.peripherals</source>
+                <target>Périphériques</target>
+            </trans-unit>
+            <trans-unit id="seed.product.name">
+                <source>seed.product.name</source>
+                <target>Clavier mécanique</target>
+            </trans-unit>
+            <trans-unit id="seed.tag.backlit">
+                <source>seed.tag.backlit</source>
+                <target>rétroéclairé</target>
+            </trans-unit>
         </body>
     </file>
 </xliff>

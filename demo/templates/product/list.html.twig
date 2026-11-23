@@ -2,7 +2,8 @@
 
 {% block body %}
 <main class="page-narrow">
-    <p><a href="{{ path('demo') }}">{{ 'demo.links.back'|trans }}</a></p>
+    <div class="page-links"><a href="{{ path('demo') }}">{{ 'demo.links.back'|trans }}</a>
+        {{ include('_language_switcher.html.twig') }}</div>
     <h1>{{ 'product.list.title'|trans }}</h1>
     {{ form_start(filter, {attr: {class: 'filter'}}) }}
         {{ form_row(filter.status) }}

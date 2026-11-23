@@ -16,6 +16,10 @@ docker compose up --build
 
 Then open http://localhost:8080. Set `DEMO_PORT` to use another port, e.g. `DEMO_PORT=8091 docker compose up --build`.
 
+The demo speaks French and English: it follows the browser's language, and the "Français / English" switch
+changes it (the choice is kept in the session, so both editors and the LiveComponent follow). As long as nobody
+has saved, the starting product is rewritten in the language of the page.
+
 Every start rebuilds the SQLite database with one product, and the "Reset the demo" button does the same
 at any time.
 
