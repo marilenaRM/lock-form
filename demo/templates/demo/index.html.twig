@@ -22,6 +22,7 @@
             <button type="submit" class="button-secondary">{{ 'demo.reset'|trans }}</button>
         </form>
         <a href="{{ path('product_list') }}">{{ 'demo.links.products'|trans }}</a>
+        {{ include('_language_switcher.html.twig') }}
     </div>
 
     <p class="protection-note {{ protection ? 'is-on' : 'is-off' }}">

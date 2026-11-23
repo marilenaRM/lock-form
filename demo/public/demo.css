@@ -79,3 +79,5 @@ ins { color: var(--ok); text-decoration: none; }
 .filter { display: flex; gap: 1rem; align-items: end; }
 .filter > div { flex: 1; margin: 0; }
 .hint { color: var(--muted); }
+.page-links { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; justify-content: space-between; }
+.demo-controls > .toggle:last-child { margin-left: auto; }
