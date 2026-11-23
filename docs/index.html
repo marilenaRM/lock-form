@@ -402,7 +402,7 @@ pre.flow{font-size:0.78rem; line-height:1.7}
     <div>
       <p class="tagline"><i>◆</i> Symfony&nbsp;7.3+ bundle <span>·</span> PHP&nbsp;8.3+ <span>·</span> MIT</p>
       <h1>Stop overwriting each other’s <span class="em">edits</span>.</h1>
-      <p class="sub">Alice opens a record, Bob saves it, Alice saves her stale copy and Bob’s change is gone without anyone noticing. This bundle spots it at submit time, like CSRF protection does: a hidden token on every root form, no change to your form types, no dependency on Doctrine.</p>
+      <p class="sub">Alice opens a record, Bob saves it, Alice saves her stale copy and Bob’s change is gone without anyone noticing. This bundle catches it when the form is submitted, the way CSRF protection works: it adds a hidden token to every root form, without touching your form types or depending on Doctrine.</p>
 
       <div class="install" role="group" aria-label="Install command">
         <div class="install__cmd" id="installCmd"><span class="pr">$</span>composer require lock-form/form-concurrency:dev-main</div>
@@ -448,10 +448,10 @@ pre.flow{font-size:0.78rem; line-height:1.7}
     <div class="split">
       <div class="reveal">
         <p class="eyebrow">The lost update</p>
-        <h2 class="head">Two people, one record.<br>One silent loss.</h2>
+        <h2 class="head">Whoever saves last<br>wins, silently.</h2>
       </div>
       <div class="prose reveal">
-        <p>This is not a race between two processes. The dangerous window is the <em>human</em> time between opening a form and submitting it: minutes, not milliseconds. Whoever saves last wins, and nobody is told.</p>
+        <p>It started with our dashboard’s edit forms. Alice and Bob open the same record a few minutes apart, Bob saves first, and when Alice saves the old version she still has on screen, his change is gone and nobody is told. Nothing slow or racy is involved here: the window that matters is the time a <em>person</em> spends on the form, which is minutes rather than milliseconds.</p>
         <p>The bundle takes a fingerprint of what the form <em>displays</em> when it is rendered, sends it in a hidden field, and compares it with what is stored when the form comes back. If they differ, the form is invalid: the user keeps what they typed, sees which fields moved and what they hold now, and has to tick a box to save anyway.</p>
       </div>
     </div>
@@ -460,17 +460,17 @@ pre.flow{font-size:0.78rem; line-height:1.7}
       <div class="stat reveal">
         <div class="n">Automatic</div>
         <h3>Like CSRF, nothing to wire</h3>
-        <p>Enable the bundle and every root form is protected. Your form types don’t change. GET forms (searches, filters) are left alone.</p>
+        <p>Once the bundle is enabled, every root form is protected and your form types stay as they are. GET forms (searches, filters) are left alone.</p>
       </div>
       <div class="stat reveal">
         <div class="n">Storage-agnostic</div>
         <h3>Entities, DTOs, arrays</h3>
-        <p>It hashes the view data of each field, not your object. No version column, no migration, no Doctrine required.</p>
+        <p>It hashes the view data of each field rather than your object, so you don’t need a version column, a migration or Doctrine.</p>
       </div>
       <div class="stat reveal">
         <div class="n">Field-level</div>
         <h3>Says what changed</h3>
-        <p>An error on each field that moved, with its current value. A change the user can’t overwrite (a field outside the form, a disabled one) is not a conflict.</p>
+        <p>Each field that moved gets an error with its current value. A change the user couldn’t overwrite anyway (a field outside the form, a disabled one) is not a conflict.</p>
       </div>
     </div>
   </div>
@@ -507,7 +507,7 @@ docker compose up --build   <span class="tok-c"># http://localhost:8080</span></
   <div class="wrap">
     <p class="eyebrow reveal">How it works</p>
     <h2 class="head reveal">Hash what the form shows, at the right moment.</h2>
-    <p class="lead reveal">Not the object: what each editable field displays, after its own data transformers. Dates are already formatted, a related entity is reduced to its id, an enum to its scalar. Two loads of the same state always give the same fingerprint.</p>
+    <p class="lead reveal">The fingerprint covers what each editable field displays, after its own data transformers, rather than the object behind it. By then dates are formatted, a related entity is down to its id and an enum to its scalar, so two loads of the same state always give the same fingerprint.</p>
 
     <div class="api-grid" style="margin-top:2.4rem">
       <div class="reveal">
@@ -539,7 +539,7 @@ POST /article/42/edit
 <span class="tok-c">// truncated HMAC-SHA256 keyed with kernel.secret</span></pre>
         </div>
         <div class="prose">
-          <p>Keeping the paths is what lets the form say <em>which</em> fields changed. The key isn’t there to stop tampering: it stops anyone from brute-forcing a value the form never shows, such as a <code>PasswordType</code>.</p>
+          <p>Keeping the paths is what lets the form say <em>which</em> fields changed. The key doesn’t prevent tampering; its job is to stop anyone from brute-forcing a value the form never shows, such as a <code>PasswordType</code> (the code review of the prototype caught that one).</p>
           <p>The acknowledgement box carries the token of the state the user was shown. Sending the same form again is still a conflict, and if someone saves in between, a new conflict comes with a new box.</p>
         </div>
       </div>
@@ -561,7 +561,7 @@ POST /article/42/edit
   <div class="wrap">
     <p class="eyebrow reveal">Try it here</p>
     <h2 class="head reveal">Be Alice and Bob.</h2>
-    <p class="lead reveal">A simulation in your browser, with the same rules and messages as the bundle. The real thing runs server side; the demo app above is the place to see it with Symfony.</p>
+    <p class="lead reveal">This one runs in your browser with the same rules and messages as the bundle. The bundle itself works server side, so to see it with Symfony, use the demo app above.</p>
 
     <div class="play reveal">
       <div class="play__top">
@@ -592,12 +592,12 @@ POST /article/42/edit
 <section class="band" id="why">
   <div class="wrap">
     <p class="eyebrow reveal">Why this approach</p>
-    <h2 class="head reveal">Four ways to do it, one that fits.</h2>
-    <p class="lead reveal">The full reasoning, with the tests that back it, is in the <a href="https://github.com/marilenaRM/lock-form/blob/main/docs/design.md" target="_blank" rel="noopener">design notes</a>.</p>
+    <h2 class="head reveal">We looked at four options first.</h2>
+    <p class="lead reveal">Each one is summed up below; the full reasoning, and the tests that back it, are in the <a href="https://github.com/marilenaRM/lock-form/blob/main/docs/design.md" target="_blank" rel="noopener">design notes</a>.</p>
 
     <div class="opts">
       <div class="opt reveal"><span class="tag tag--no">Rejected</span><h3>A. Lock the record while it’s open</h3><p>Over HTTP a lock that lasts as long as someone thinks needs a TTL, a heartbeat and a “take over” button, and once it expires the overwrite goes through anyway. Useful later as a non-blocking “Bob is editing” hint.</p></div>
-      <div class="opt reveal"><span class="tag tag--mid">Complement</span><h3>B. Doctrine <code>#[ORM\Version]</code></h3><p>The only truly atomic option, but Doctrine-only, one column per entity, false conflicts on fields the form doesn’t show, and the version still has to travel in the form.</p></div>
+      <div class="opt reveal"><span class="tag tag--mid">Complement</span><h3>B. Doctrine <code>#[ORM\Version]</code></h3><p>It is the only truly atomic option. But it is limited to Doctrine, needs a column per entity, raises false conflicts on fields the form doesn’t show, and the version still has to travel in the form.</p></div>
       <div class="opt reveal"><span class="tag tag--no">Rejected, tested</span><h3>C. Hash the object in <code>PRE_SET_DATA</code></h3><p>The event fires before the fields are filled, and an object hash changes for the wrong reasons: properties outside the form, time zones, proxies, collections.</p></div>
       <div class="opt opt--yes reveal"><span class="tag tag--yes">Kept</span><h3>D. Fingerprint what the form displays</h3><p>View data of each editable field, taken after <code>POST_SET_DATA</code> and again in <code>PRE_SUBMIT</code>. Only what this user could change is compared.</p></div>
     </div>
@@ -608,7 +608,7 @@ POST /article/42/edit
 <section class="band band--tint" id="limits">
   <div class="wrap">
     <p class="eyebrow reveal">Know the limits</p>
-    <h2 class="head reveal">It detects. It doesn’t lock.</h2>
+    <h2 class="head reveal">It detects, it doesn’t guarantee.</h2>
     <p class="lead reveal">It protects users from each other’s mistakes, not from someone acting in bad faith.</p>
 
     <div class="honest">
@@ -640,14 +640,14 @@ POST /article/42/edit
     <h2 class="head reveal">The awkward cases are handled.</h2>
 
     <div class="feat">
-      <div class="fcard reveal"><span class="ic">⚡</span><h3>LiveComponent-safe</h3><p>A component submits on every keystroke. The explicit acknowledgement stops a re-render from silently swapping the token.</p></div>
-      <div class="fcard reveal"><span class="ic">🙈</span><h3>Never discloses</h3><p>A field that doesn’t render its value, like a password, only says it changed. The conflict shows nothing the form itself hides.</p></div>
+      <div class="fcard reveal"><span class="ic">⚡</span><h3>LiveComponent-safe</h3><p>A component submits on every keystroke, and the first version let a re-render quietly swap the token. A test in the demo caught it; the explicit acknowledgement fixed it.</p></div>
+      <div class="fcard reveal"><span class="ic">🙈</span><h3>Never discloses</h3><p>A field that doesn’t render its value, like a password, only says it changed, so the conflict never reveals what the form hides.</p></div>
       <div class="fcard reveal"><span class="ic">🏷️</span><h3>Readable values</h3><p>A choice shows its label (“Tutorial”), not its value (“2”), with the field’s own translation domain.</p></div>
-      <div class="fcard reveal"><span class="ic">🧺</span><h3>Collections</h3><p>Entries the user adds or removes are fine. Entries someone else added are reported on the collection.</p></div>
+      <div class="fcard reveal"><span class="ic">🧺</span><h3>Collections</h3><p>Entries the user adds or removes are fine, while entries someone else added are reported on the collection.</p></div>
       <div class="fcard reveal"><span class="ic">🔎</span><h3>GET forms skipped</h3><p>Searches and filters change nothing and are reached by plain links, so they get no token.</p></div>
       <div class="fcard reveal"><span class="ic">🧩</span><h3>Dependent fields</h3><p>Fields rebuilt from the submitted values in <code>PRE_SUBMIT</code> don’t raise false conflicts.</p></div>
       <div class="fcard reveal"><span class="ic">🌍</span><h3>English &amp; French</h3><p>Messages live in the <code>form_concurrency</code> translation domain, both languages included.</p></div>
-      <div class="fcard reveal"><span class="ic">✅</span><h3>Tested</h3><p>PHPStan level 9 and PHPUnit, plus exploration tests that prove why the rejected options fail and browser runs of the demo.</p></div>
+      <div class="fcard reveal"><span class="ic">✅</span><h3>Tested</h3><p>PHPStan level 9 and PHPUnit, exploration tests showing why the rejected options fail, and the demo played in a real browser.</p></div>
     </div>
   </div>
 </section>
