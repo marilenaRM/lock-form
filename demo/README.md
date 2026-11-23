@@ -59,8 +59,9 @@ application would usually put a DTO in between; the protection does not care.
 Who is editing comes from `?as=alice|bob`; there is no authentication.
 
 The LiveComponent page loads its JavaScript (Stimulus and the `live` controller) through AssetMapper;
-`bin/console importmap:install` downloads Stimulus when the image is built. The component's tag list only edits
-existing tags: adding or removing entries would need `LiveCollectionType`.
+`bin/console importmap:install` downloads Stimulus when the image is built. In the component, the tag list is a
+`LiveCollectionType` (`live_collection` option of `ProductType`): adding or removing a tag is a LiveComponent
+action, and the server re-renders the list.
 
 The price is stored in cents, as an integer, so that no float ever holds money.
 
@@ -80,7 +81,7 @@ docker compose run --rm demo composer qa
 `e2e/record.mjs` plays the main scenario in Chromium, protection off then on (with Alice acknowledging the
 conflict), and records it. Each step
 waits for what it expects to see, so a broken demo fails there instead of producing a misleading video.
-`e2e/live.mjs` does the same with the LiveComponent forms, in a real browser with the LiveComponent JavaScript
+`e2e/live.mjs` does the same with the LiveComponent forms, then adds and removes a tag, in a real browser with the LiveComponent JavaScript
 (`RECORD=1` keeps a video). Both run in the Playwright image, against a demo started on port 8091:
 
 ```bash

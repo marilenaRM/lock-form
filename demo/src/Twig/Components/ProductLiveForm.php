@@ -15,7 +15,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\UX\LiveComponent\Attribute\AsLiveComponent;
 use Symfony\UX\LiveComponent\Attribute\LiveAction;
 use Symfony\UX\LiveComponent\Attribute\LiveProp;
-use Symfony\UX\LiveComponent\ComponentWithFormTrait;
+use Symfony\UX\LiveComponent\LiveCollectionTrait;
 use Symfony\UX\LiveComponent\DefaultActionTrait;
 
 /**
@@ -25,8 +25,8 @@ use Symfony\UX\LiveComponent\DefaultActionTrait;
 #[AsLiveComponent]
 final class ProductLiveForm extends AbstractController
 {
-    use ComponentWithFormTrait;
     use DefaultActionTrait;
+    use LiveCollectionTrait;
 
     #[LiveProp]
     public ?Product $record = null;
@@ -57,6 +57,7 @@ final class ProductLiveForm extends AbstractController
         return $this->createForm(ProductType::class, $this->record, [
             'csrf_protection' => false,
             'concurrency_protection' => $this->protection,
+            'live_collection' => true,
         ]);
     }
 }

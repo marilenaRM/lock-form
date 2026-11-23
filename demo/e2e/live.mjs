@@ -89,9 +89,30 @@ async function scenario(protection) {
     await caption('Enregistré, en connaissance de cause');
 }
 
+async function tags() {
+    console.log('LiveComponent, tags');
+    await page.goto(`${base}/?live=1&protection=1`);
+    await page.getByRole('button', { name: 'Réinitialiser la démo' }).click();
+    await page.waitForURL(/live=1/);
+
+    const alice = page.frameLocator('iframe[name=alice]');
+    const lastSave = page.frameLocator('iframe[name=history]').locator('tbody tr').first();
+
+    await caption('Les tags se gèrent aussi dans le composant (LiveCollectionType)');
+    await alice.getByRole('button', { name: 'Retirer' }).first().click();
+    await alice.locator('input[name="product[tags][0]"]').waitFor({ state: 'detached' });
+    await alice.getByRole('button', { name: 'Ajouter un tag' }).click();
+    await alice.locator('input[name="product[tags][2]"]').fill('sans-fil');
+    await alice.getByRole('button', { name: 'Enregistrer' }).click();
+    await alice.getByText('Enregistré.').waitFor();
+    await lastSave.getByText('rétroéclairé, sans-fil').waitFor();
+    await caption('Ajout et retrait enregistrés sans conflit : c’est Alice qui les a faits');
+}
+
 try {
     await scenario(false);
     await scenario(true);
+    await tags();
     console.log('OK');
 } finally {
     await context.close();

@@ -11,15 +11,16 @@
         {{ form_row(form.status) }}
         {{ form_row(form.category) }}
 
-        {# Existing tags only: adding or removing entries would need LiveCollectionType. #}
+        {# LiveCollectionType: the add and remove buttons call LiveCollectionTrait actions, the server re-renders the list. #}
         <fieldset class="tags">
             <legend>{{ form_label(form.tags) }}</legend>
             {{ form_errors(form.tags) }}
             <ul data-tags-list>
                 {% for tag in form.tags %}
-                    <li>{{ form_widget(tag) }} {{ form_errors(tag) }}</li>
+                    <li>{{ form_widget(tag) }} {{ form_widget(tag.vars.button_delete, {attr: {class: 'button-link'}}) }} {{ form_errors(tag) }}</li>
                 {% endfor %}
             </ul>
+            {{ form_widget(form.tags.vars.button_add, {attr: {class: 'button-secondary'}}) }}
             {% do form.tags.setRendered %}
         </fieldset>
 

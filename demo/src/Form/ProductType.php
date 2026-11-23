@@ -15,6 +15,7 @@ use Symfony\Component\Form\Extension\Core\Type\MoneyType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\UX\LiveComponent\Form\Type\LiveCollectionType;
 
 /**
  * Nothing here knows about the concurrency protection: the bundle adds it to every form.
@@ -38,18 +39,25 @@ final class ProductType extends AbstractType
                 'choice_label' => 'name',
                 'choice_translation_domain' => false,
             ])
-            ->add('tags', CollectionType::class, [
+            ->add('tags', $options['live_collection'] ? LiveCollectionType::class : CollectionType::class, [
                 'label' => 'product.field.tags',
                 'entry_type' => TextType::class,
                 'entry_options' => ['label' => false],
                 'allow_add' => true,
                 'allow_delete' => true,
-                'prototype' => true,
+                ...($options['live_collection']
+                    ? ['button_add_options' => ['label' => 'product.tags.add'], 'button_delete_options' => ['label' => 'product.tags.remove']]
+                    : ['prototype' => true]),
             ]);
     }
 
     public function configureOptions(OptionsResolver $resolver): void
     {
-        $resolver->setDefaults(['data_class' => Product::class]);
+        $resolver->setDefaults([
+            'data_class' => Product::class,
+            // In a LiveComponent, entries are added and removed by the server (LiveCollectionTrait), not by demo.js.
+            'live_collection' => false,
+        ]);
+        $resolver->setAllowedTypes('live_collection', 'bool');
     }
 }

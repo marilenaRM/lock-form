@@ -83,6 +83,36 @@ final class LiveComponentConflictTest extends WebTestCase
         self::assertSame(['Clavier mécanique sans fil', 8990], $this->storedNameAndPrice());
     }
 
+    public function testTagsAddedAndRemovedByAliceAreSavedWithoutConflict(): void
+    {
+        $alice = $this->openLiveForm($this->alice, DemoUser::Alice);
+
+        $alice->call('removeCollectionItem', ['name' => 'product[tags]', 'index' => 0]);
+        $alice->call('addCollectionItem', ['name' => 'product[tags]']);
+        $alice->set('product.tags.2', 'sans-fil');
+        $alice->call('save');
+
+        self::assertTrue($alice->response()->isRedirection());
+        self::assertSame(['rétroéclairé', 'sans-fil'], $this->storedTags());
+    }
+
+    public function testATagAddedByBobWhileAliceEditsTheListIsAConflict(): void
+    {
+        $alice = $this->openLiveForm($this->alice, DemoUser::Alice);
+
+        $bob = $this->openLiveForm($this->bob, DemoUser::Bob);
+        $bob->call('addCollectionItem', ['name' => 'product[tags]']);
+        $bob->set('product.tags.2', 'filaire');
+        $bob->call('save');
+        self::assertTrue($bob->response()->isRedirection(), 'Bob saves');
+
+        $alice->call('addCollectionItem', ['name' => 'product[tags]']);
+        $alice->set('product.tags.2', 'sans-fil');
+
+        $this->assertSaveIsRefused($alice);
+        self::assertSame(['usb-c', 'rétroéclairé', 'filaire'], $this->storedTags());
+    }
+
     /**
      * TestLiveComponent lets exceptions through, so the 422 of an invalid form arrives as one.
      */
@@ -113,6 +143,20 @@ final class LiveComponentConflictTest extends WebTestCase
         $component->render();
 
         return $component;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function storedTags(): array
+    {
+        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
+        \assert($entityManager instanceof EntityManagerInterface);
+        $entityManager->clear();
+        $product = $entityManager->find(Product::class, 1);
+        \assert($product instanceof Product);
+
+        return $product->getTags();
     }
 
     /**
