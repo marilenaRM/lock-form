@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>lock-form — stop overwriting each other's edits in Symfony forms</title>
+<meta name="description" content="A Symfony bundle that detects concurrent edits on forms with an automatic, storage-agnostic fingerprint token, like CSRF protection. No change to your form types, no Doctrine required.">
+<meta name="author" content="Marilena Ruffelaere">
+<meta name="theme-color" content="#0f172a">
+<meta property="og:type" content="website">
+<meta property="og:title" content="lock-form — stop overwriting each other's edits in Symfony forms">
+<meta property="og:description" content="Detects that a record changed between the moment a form was displayed and the moment it was submitted, so nobody silently overwrites someone else's changes.">
+<meta property="og:url" content="https://marilenarm.github.io/lock-form/">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect x='6' y='8' width='38' height='48' rx='5' fill='%2364748b'/><rect x='12' y='18' width='26' height='4' rx='2' fill='%230f1729'/><rect x='12' y='28' width='18' height='4' rx='2' fill='%230f1729'/><path d='M41 34v-5a7 7 0 0 1 14 0v5' stroke='%23f2a63c' stroke-width='4' fill='none'/><rect x='35' y='34' width='26' height='22' rx='4' fill='%23f2a63c'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#f6f8fb; --paper-2:#eceff4; --card:#ffffff;
+  --ink:#0f172a; --ink-2:#1e293b; --slate:#334155;
+  --muted:#586372; --line:#dde3ea;
+  --dark-fg:#e6ebf2; --dark-fg-2:#9aa7b8; --line-d:#25324a; --card-d:#16233b;
+  --ok:#16a34a; --ok-2:#4ade80; --err:#dc2626; --err-2:#f87171;
+  --warn:#d97706; --warn-2:#fbbf24; --info:#2563eb; --info-2:#60a5fa;
+  --mono:'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sans:'Archivo', system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --maxw:1080px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+/* let grid/flex children shrink below their content so code & header lines scroll instead of widening the page */
+.hero__grid>*,.split>*,.api-grid>*,.cards2>*,.stats>*,.feat>*,.honest>*,.step>*{min-width:0}
+body{
+  margin:0; background:var(--paper); color:var(--ink-2);
+  font-family:var(--sans); font-size:clamp(1rem,0.96rem + 0.2vw,1.08rem);
+  line-height:1.62; -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+}
+a{color:inherit}
+code{font-family:var(--mono); font-size:0.86em}
+::selection{background:#bbf7d0; color:#052e16}
+
+.wrap{max-width:var(--maxw); margin-inline:auto; padding-inline:clamp(1.2rem,4vw,2rem)}
+.band{padding-block:clamp(3.6rem,8vw,6.2rem)}
+.band--dark{background:var(--ink); color:var(--dark-fg)}
+.band--tint{background:var(--paper-2)}
+.eyebrow{
+  font-family:var(--mono); font-size:0.72rem; font-weight:500;
+  letter-spacing:0.2em; text-transform:uppercase; color:var(--muted);
+  display:flex; align-items:center; gap:0.6rem; margin:0 0 1.1rem;
+}
+.eyebrow::before{content:""; width:1.6rem; height:1px; background:currentColor; opacity:0.55}
+.band--dark .eyebrow{color:var(--dark-fg-2)}
+h2.head{
+  font-size:clamp(1.75rem,1.2rem + 2.4vw,2.7rem); font-weight:800;
+  letter-spacing:-0.025em; line-height:1.04; margin:0 0 1rem;
+}
+.lead{font-size:1.12rem; color:var(--slate); max-width:52ch}
+.band--dark .lead{color:#c3cddb}
+
+/* ---------- nav ---------- */
+.nav{position:sticky; top:0; z-index:900; background:rgba(15,23,42,0.82);
+  backdrop-filter:blur(10px); border-bottom:1px solid var(--line-d)}
+.nav__in{display:flex; align-items:center; justify-content:space-between;
+  height:56px; color:var(--dark-fg)}
+.brand{display:flex; align-items:center; gap:0.55rem; font-family:var(--mono);
+  font-weight:600; font-size:0.95rem; letter-spacing:-0.01em; text-decoration:none; white-space:nowrap}
+@media(max-width:440px){.brand .crumb{display:none}}
+.brand b{color:#fff}
+.brand .crumb{color:var(--ok-2)}
+.brand .glyph{width:1.35rem; height:1.35rem; background:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect x='22' y='15' width='34' height='13' rx='6.5' fill='%2364748b'/><rect x='8' y='30' width='46' height='20' rx='9' fill='%23f2a63c'/><rect x='15' y='36' width='28' height='4' rx='2' fill='%230f1729'/><rect x='15' y='43' width='18' height='4' rx='2' fill='%230f1729'/></svg>") center/contain no-repeat}
+.nav__links{display:flex; gap:1.4rem; align-items:center; font-family:var(--mono);
+  font-size:0.82rem; color:var(--dark-fg-2)}
+.nav__links a{text-decoration:none; transition:color .15s}
+.nav__links a:hover{color:#fff}
+.nav__links .hide-sm{}
+@media(max-width:620px){.nav__links .hide-sm{display:none}}
+
+/* ---------- hero ---------- */
+.hero{background:
+    radial-gradient(120% 90% at 85% -10%, rgba(37,99,235,0.18), transparent 55%),
+    radial-gradient(90% 80% at 5% 0%, rgba(22,163,74,0.12), transparent 50%),
+    var(--ink);
+  color:var(--dark-fg); padding-block:clamp(3.4rem,7vw,5.6rem) clamp(3.6rem,8vw,6rem);
+  overflow:hidden}
+.hero__grid{display:grid; grid-template-columns:1.05fr 0.95fr; gap:clamp(2rem,5vw,4rem); align-items:center}
+@media(max-width:860px){.hero__grid{grid-template-columns:1fr; gap:2.6rem}}
+.hero .tagline{font-family:var(--mono); font-size:0.74rem; letter-spacing:0.22em;
+  text-transform:uppercase; color:var(--dark-fg-2); margin:0 0 1.3rem;
+  display:flex; gap:0.7rem; flex-wrap:wrap; align-items:center}
+.hero .tagline i{font-style:normal; color:var(--ok-2)}
+.hero h1{font-size:clamp(2.5rem,1.4rem + 5vw,4.5rem); font-weight:800; line-height:0.98;
+  letter-spacing:-0.035em; margin:0 0 1.3rem; color:#fff}
+.hero h1 .em{color:var(--ok-2); position:relative; white-space:nowrap}
+.hero h1 .em::after{content:""; position:absolute; left:0; right:0; bottom:0.08em; height:0.09em;
+  background:var(--ok-2); opacity:0.35; border-radius:2px}
+.hero p.sub{font-size:1.14rem; color:#c3cddb; max-width:46ch; margin:0 0 2rem}
+.hero p.sub code{color:#fff; background:rgba(255,255,255,0.08); padding:0.08em 0.35em; border-radius:4px}
+
+.install{display:flex; align-items:stretch; gap:0; max-width:29rem;
+  border:1px solid var(--line-d); border-radius:9px; background:#0b1526; overflow:hidden}
+.install__cmd{font-family:var(--mono); font-size:0.82rem; color:#dce6f3;
+  padding:0.75rem 0.95rem; overflow-x:auto; white-space:nowrap; flex:1; display:flex; align-items:center}
+.install__cmd .pr{color:var(--ok-2); margin-right:0.55rem; user-select:none}
+.install__copy{border:0; border-left:1px solid var(--line-d); background:#132038; color:#9fb0c7;
+  font-family:var(--mono); font-size:0.72rem; letter-spacing:0.05em; padding-inline:0.95rem;
+  cursor:pointer; transition:background .15s,color .15s}
+.install__copy:hover{background:#1a2c4d; color:#fff}
+.cta-row{display:flex; gap:0.8rem; margin-top:1.4rem; flex-wrap:wrap}
+.btn{display:inline-flex; align-items:center; gap:0.5rem; text-decoration:none;
+  font-weight:600; font-size:0.92rem; padding:0.6rem 1.05rem; border-radius:8px; transition:transform .12s, background .15s, border-color .15s}
+.btn:active{transform:translateY(1px)}
+.btn--primary{background:var(--ok); color:#fff}
+.btn--primary:hover{background:#15873f}
+.btn--ghost{border:1px solid var(--line-d); color:var(--dark-fg)}
+.btn--ghost:hover{border-color:#3b4d70; background:rgba(255,255,255,0.03)}
+
+/* ---------- inspector (signature) ---------- */
+.inspector{background:linear-gradient(180deg,#0c1728,#0a1322); border:1px solid var(--line-d);
+  border-radius:12px; box-shadow:0 22px 50px -20px rgba(0,0,0,0.6); overflow:hidden; font-family:var(--mono)}
+.inspector__bar{display:flex; align-items:center; gap:0.5rem; padding:0.7rem 0.95rem;
+  border-bottom:1px solid var(--line-d); background:#0b1424}
+.dot{width:0.62rem; height:0.62rem; border-radius:50%; display:inline-block}
+.dot--r{background:#ff5f57}.dot--y{background:#febc2e}.dot--g{background:#28c840}
+.inspector__title{margin-left:0.5rem; font-size:0.72rem; color:#8493a8; letter-spacing:0.02em}
+.inspector__body{padding:1.05rem 1.1rem 1.2rem}
+.req{font-size:0.78rem; color:#8fa1b8; margin-bottom:0.9rem; display:flex; justify-content:space-between}
+.req .ok{color:var(--ok-2)}
+.iblock{padding:0.7rem 0.8rem; border-radius:8px; margin-bottom:0.7rem; border:1px solid transparent}
+.iblock:last-child{margin-bottom:0}
+.iblock--bad{background:rgba(220,38,38,0.07); border-color:rgba(220,38,38,0.25)}
+.iblock--good{background:rgba(22,163,74,0.08); border-color:rgba(22,163,74,0.28)}
+.iblock .cap{font-size:0.68rem; letter-spacing:0.06em; text-transform:uppercase; margin-bottom:0.5rem; color:#8493a8}
+.iblock .cap code{color:#c9d5e6; text-transform:none; letter-spacing:0}
+.hline{font-size:0.76rem; line-height:1.85; overflow-wrap:anywhere}
+.hline .k{color:#7f8ea3}
+.hline--bad .v{color:var(--err-2); text-decoration:line-through; text-decoration-color:rgba(248,113,113,0.5)}
+.hline--good .v{color:var(--ok-2)}
+.hline .note{color:#6b7a90; font-style:italic}
+.verdict{display:inline-flex; align-items:center; gap:0.35rem; font-size:0.72rem; margin-top:0.4rem}
+.verdict--bad{color:var(--err-2)} .verdict--good{color:var(--ok-2)}
+
+/* ---------- generic sections ---------- */
+.split{display:grid; grid-template-columns:0.85fr 1.15fr; gap:clamp(1.6rem,4vw,3.4rem); align-items:start}
+@media(max-width:820px){.split{grid-template-columns:1fr; gap:1.6rem}}
+.prose p{margin:0 0 1rem} .prose p:last-child{margin-bottom:0}
+.prose code{background:var(--paper-2); padding:0.1em 0.36em; border-radius:4px; color:var(--slate)}
+.band--dark .prose code{background:rgba(255,255,255,0.08); color:#dbe4ef}
+
+.stats{display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin-top:2.4rem}
+@media(max-width:720px){.stats{grid-template-columns:1fr}}
+.stat{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:1.3rem 1.25rem}
+.stat .n{font-family:var(--mono); font-size:0.72rem; letter-spacing:0.14em; text-transform:uppercase;
+  color:var(--ok); margin-bottom:0.6rem}
+.stat h3{margin:0 0 0.35rem; font-size:1.06rem; font-weight:700; letter-spacing:-0.01em}
+.stat p{margin:0; font-size:0.94rem; color:var(--muted)}
+
+/* two transports */
+.cards2{display:grid; grid-template-columns:1fr 1fr; gap:1.3rem; margin-top:2.4rem}
+@media(max-width:760px){.cards2{grid-template-columns:1fr}}
+.tcard{border:1px solid var(--line); border-radius:14px; background:var(--card); padding:1.5rem 1.5rem 1.35rem; position:relative}
+.tcard__badge{font-family:var(--mono); font-size:0.7rem; letter-spacing:0.12em; text-transform:uppercase;
+  padding:0.28rem 0.6rem; border-radius:999px; display:inline-block; margin-bottom:0.95rem}
+.tcard--stream .tcard__badge{background:#dbeafe; color:#1d4ed8}
+.tcard--cookie .tcard__badge{background:#fef3c7; color:#b45309}
+.tcard h3{margin:0 0 0.5rem; font-size:1.22rem; font-weight:700; letter-spacing:-0.015em}
+.tcard p{margin:0 0 1rem; font-size:0.96rem; color:var(--muted)}
+.mini{font-family:var(--mono); font-size:0.8rem; background:#0d1727; color:#dbe4ef;
+  border-radius:8px; padding:0.7rem 0.85rem; overflow-x:auto}
+.mini .fn{color:var(--warn-2)} .mini .str{color:var(--ok-2)} .mini .kw{color:var(--info-2)} .mini .var{color:#e2e8f0}
+
+/* code blocks (dark) */
+pre.code{margin:0; font-family:var(--mono); font-size:0.83rem; line-height:1.75;
+  background:#0c1728; border:1px solid var(--line-d); border-radius:12px; padding:1.15rem 1.25rem;
+  overflow-x:auto; color:#cdd8e6; -webkit-overflow-scrolling:touch}
+.band--dark pre.code{background:#0a1220}
+.tok-c{color:#647087; font-style:italic}
+.tok-s{color:var(--ok-2)}
+.tok-k{color:var(--info-2)}
+.tok-f{color:var(--warn-2)}
+.tok-v{color:#e7edf5}
+.tok-a{color:#f0abfc}
+.code-label{font-family:var(--mono); font-size:0.72rem; color:var(--dark-fg-2);
+  letter-spacing:0.1em; text-transform:uppercase; margin:0 0 0.55rem; display:block}
+.stack{display:grid; gap:1.4rem}
+.stack>*,.steps>*,.step__b{min-width:0}
+@media(max-width:620px){.verbs td:nth-child(2),.verbs th:nth-child(2){display:none}}
+.api-grid{display:grid; grid-template-columns:1fr 1fr; gap:1.4rem}
+@media(max-width:820px){.api-grid{grid-template-columns:1fr}}
+
+/* verb table */
+.verbs{width:100%; border-collapse:collapse; margin:1.8rem 0 0; font-size:0.94rem}
+.verbs th,.verbs td{text-align:left; padding:0.75rem 0.9rem; border-bottom:1px solid var(--line-d)}
+.verbs th{font-family:var(--mono); font-size:0.7rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--dark-fg-2); font-weight:500}
+.verbs td code{color:var(--ok-2); background:rgba(255,255,255,0.05); padding:0.12em 0.4em; border-radius:4px}
+.verbs tr:last-child td{border-bottom:0}
+
+/* demo */
+.demo{margin-top:2rem; border:1px dashed var(--line-d); border-radius:12px; padding:1.3rem;
+  display:flex; flex-wrap:wrap; align-items:center; gap:0.7rem; background:rgba(255,255,255,0.02)}
+.demo .demo__hint{font-family:var(--mono); font-size:0.78rem; color:var(--dark-fg-2); width:100%; margin-bottom:0.3rem}
+.demo__hint a{color:#fff; text-decoration:underline; text-underline-offset:2px}
+.chip{border:0; cursor:pointer; font-family:var(--sans); font-weight:600; font-size:0.88rem;
+  color:#fff; padding:0.55rem 0.95rem; border-radius:8px; transition:transform .12s, filter .15s;
+  display:inline-flex; align-items:center; gap:0.45rem}
+.chip:hover{filter:brightness(1.08)} .chip:active{transform:translateY(1px)}
+.chip--success{background:var(--ok)} .chip--error{background:var(--err)}
+.chip--warning{background:var(--warn)} .chip--info{background:var(--info)}
+
+/* honesty */
+.honest{display:grid; grid-template-columns:1fr 1fr; gap:1.3rem; margin-top:2.4rem}
+@media(max-width:760px){.honest{grid-template-columns:1fr}}
+.hcol{border-radius:14px; padding:1.5rem; border:1px solid var(--line)}
+.hcol--yes{background:#f0fdf4; border-color:#bbf7d0}
+.hcol--no{background:#fef2f2; border-color:#fecaca}
+.hcol h3{margin:0 0 0.9rem; font-size:1.05rem; font-weight:700; display:flex; align-items:center; gap:0.5rem}
+.hcol--yes h3{color:#15803d} .hcol--no h3{color:#b91c1c}
+.hcol ul{margin:0; padding-left:1.1rem} .hcol li{margin-bottom:0.55rem; font-size:0.95rem; color:var(--slate)}
+.hcol li:last-child{margin-bottom:0}
+.note-line{margin-top:1.8rem; font-family:var(--mono); font-size:0.85rem; color:var(--muted);
+  border-left:3px solid var(--warn); padding-left:0.9rem}
+
+/* features */
+.feat{display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-top:2.4rem}
+@media(max-width:900px){.feat{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:520px){.feat{grid-template-columns:1fr}}
+.fcard{border:1px solid var(--line); border-radius:12px; padding:1.15rem; background:var(--card)}
+.fcard .ic{font-size:1.15rem; margin-bottom:0.55rem; display:block}
+.fcard h3{margin:0 0 0.3rem; font-size:0.98rem; font-weight:700; letter-spacing:-0.01em}
+.fcard p{margin:0; font-size:0.88rem; color:var(--muted); line-height:1.55}
+
+/* install steps */
+.steps{counter-reset:s; margin-top:2.2rem; display:grid; gap:1.1rem}
+.step{display:grid; grid-template-columns:auto 1fr; gap:1rem; align-items:start}
+.step__n{counter-increment:s; width:2rem; height:2rem; border-radius:50%; flex:none;
+  display:grid; place-items:center; font-family:var(--mono); font-size:0.85rem; font-weight:600;
+  background:var(--ink); color:#fff}
+.step__n::before{content:counter(s)}
+.step__b h3{margin:0 0 0.3rem; font-size:1rem; font-weight:700}
+.step__b p{margin:0 0 0.7rem; color:var(--muted); font-size:0.94rem}
+.step__b p:last-child{margin-bottom:0}
+
+/* footer */
+.foot{background:var(--ink); color:var(--dark-fg); padding-block:clamp(2.8rem,6vw,4rem)}
+.foot__grid{display:flex; justify-content:space-between; gap:2rem; flex-wrap:wrap; align-items:flex-start}
+.foot p{margin:0.4rem 0 0; color:var(--dark-fg-2); font-size:0.9rem; max-width:40ch}
+.foot__links{display:flex; flex-direction:column; gap:0.5rem; font-family:var(--mono); font-size:0.85rem}
+.foot__links a{color:var(--dark-fg-2); text-decoration:none; transition:color .15s}
+.foot__links a:hover{color:#fff}
+.kofi{display:inline-flex; align-items:center; gap:0.5rem; margin-top:1.3rem;
+  font-size:0.9rem; color:#c3cddb}
+.kofi a{color:var(--warn-2); text-decoration:none; font-weight:600}
+.foot__bottom{margin-top:2.4rem; padding-top:1.4rem; border-top:1px solid var(--line-d);
+  font-family:var(--mono); font-size:0.76rem; color:#6b7a90; display:flex; justify-content:space-between; flex-wrap:wrap; gap:0.6rem}
+
+/* reveal */
+.reveal{opacity:0; transform:translateY(14px); transition:opacity .6s ease, transform .6s ease}
+.reveal.in{opacity:1; transform:none}
+
+/* ---------- live toasts (exact bundle behaviour) ---------- */
+#toasts{position:fixed; top:1rem; right:1rem; z-index:1080; display:flex; flex-direction:column;
+  gap:0.5rem; pointer-events:none}
+.toast{pointer-events:auto; min-width:16rem; max-width:24rem; padding:0.75rem 1rem; border-radius:0.375rem;
+  color:#fff; background:#334155; box-shadow:0 4px 12px rgb(0 0 0 / 15%); cursor:pointer;
+  opacity:0; transform:translateY(-8px); transition:opacity .2s ease, transform .2s ease}
+.toast--in{opacity:1; transform:translateY(0)}
+.toast--success{background:#16a34a}.toast--error{background:#dc2626}
+.toast--warning{background:#d97706}.toast--info{background:#2563eb}
+
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .reveal{opacity:1; transform:none; transition:none}
+  .toast{transition:opacity .2s ease}
+  .toast, .toast--in{transform:none}
+}
+:focus-visible{outline:2px solid var(--info-2); outline-offset:2px; border-radius:3px}
+
+/* ---------- lock-form additions ---------- */
+.brand .glyph{background-image:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect x='6' y='8' width='38' height='48' rx='5' fill='%2364748b'/><rect x='12' y='18' width='26' height='4' rx='2' fill='%230f1729'/><rect x='12' y='28' width='18' height='4' rx='2' fill='%230f1729'/><path d='M41 34v-5a7 7 0 0 1 14 0v5' stroke='%23f2a63c' stroke-width='4' fill='none'/><rect x='35' y='34' width='26' height='22' rx='4' fill='%23f2a63c'/></svg>")}
+.brand .crumb{color:var(--warn-2)}
+.hero h1 .em{color:var(--warn-2)}
+.hero .tagline i{color:var(--warn-2)}
+.hero h1 .em::after{background:var(--warn-2)}
+.install__cmd .pr{color:var(--warn-2)}
+.btn--primary{background:var(--warn); color:#fff}
+.btn--primary:hover{background:#b45309}
+.stat .n{color:var(--warn)}
+.proto{font-family:var(--mono); font-size:0.72rem; color:var(--dark-fg-2); margin:0.7rem 0 0}
+.proto code{color:#dbe4ef}
+
+/* signature: the conflict as the user sees it */
+.formcard{background:#fff; color:var(--ink-2); border-radius:12px; overflow:hidden;
+  box-shadow:0 22px 50px -20px rgba(0,0,0,0.6); border:1px solid #2a3a57; font-size:0.9rem}
+.formcard__bar{display:flex; align-items:center; gap:0.5rem; padding:0.6rem 0.9rem; background:#0b1424; border-bottom:1px solid var(--line-d)}
+.formcard__title{margin-left:0.5rem; font-family:var(--mono); font-size:0.72rem; color:#8493a8}
+.formcard__body{padding:1rem 1.1rem 1.15rem}
+.alert{background:#fef2f2; border:1px solid #fecaca; color:#991b1b; border-radius:8px; padding:0.6rem 0.75rem; font-size:0.82rem; line-height:1.45; margin-bottom:0.9rem}
+.fld{margin-bottom:0.75rem}
+.fld label{display:block; font-weight:600; font-size:0.8rem; margin-bottom:0.25rem; color:var(--slate)}
+.fld .inp{border:1px solid #cbd5e1; border-radius:6px; padding:0.42rem 0.6rem; font-size:0.86rem; background:#fff}
+.fld--bad .inp{border-color:#f87171; background:#fff7f7}
+.fld .err{color:#b91c1c; font-size:0.76rem; margin-top:0.25rem; line-height:1.4}
+.fld .kept{color:#15803d; font-size:0.76rem; margin-top:0.25rem}
+.ack{display:flex; gap:0.5rem; align-items:flex-start; font-size:0.8rem; background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:0.55rem 0.7rem; margin:0.4rem 0 0.8rem; color:#78350f}
+.ack .box{width:0.9rem; height:0.9rem; border:1.5px solid #b45309; border-radius:3px; flex:none; margin-top:0.15rem; background:#fff}
+.fbtn{display:inline-block; background:var(--ink); color:#fff; border-radius:6px; padding:0.42rem 0.9rem; font-weight:600; font-size:0.82rem}
+
+/* gifs */
+.gifs{display:grid; grid-template-columns:1fr 1fr; gap:1.3rem; margin-top:2.4rem}
+@media(max-width:820px){.gifs{grid-template-columns:1fr}}
+.gif{margin:0; background:var(--card); border:1px solid var(--line); border-radius:14px; overflow:hidden}
+.gif img{display:block; width:100%; height:auto; background:var(--paper-2)}
+.gif figcaption{padding:1rem 1.2rem 1.15rem; font-size:0.93rem; color:var(--muted)}
+.gif figcaption b{display:block; color:var(--ink-2); font-size:1rem; margin-bottom:0.2rem}
+.runbox{margin-top:1.6rem; display:flex; flex-wrap:wrap; gap:0.8rem 1.4rem; align-items:center; font-size:0.94rem; color:var(--slate)}
+.runbox pre.code{display:inline-block; padding:0.55rem 0.9rem}
+
+/* flow */
+pre.flow{font-size:0.78rem; line-height:1.7}
+.flow .g{color:var(--ok-2)} .flow .r{color:var(--err-2)} .flow .y{color:var(--warn-2)}
+
+/* options considered */
+.opts{display:grid; grid-template-columns:repeat(2,1fr); gap:1rem; margin-top:2.4rem}
+@media(max-width:760px){.opts{grid-template-columns:1fr}}
+.opt{border:1px solid var(--line); border-radius:12px; background:var(--card); padding:1.25rem 1.3rem}
+.opt h3{margin:0 0 0.4rem; font-size:1.04rem; font-weight:700; letter-spacing:-0.01em}
+.opt p{margin:0; font-size:0.93rem; color:var(--muted)}
+.opt .tag{font-family:var(--mono); font-size:0.68rem; letter-spacing:0.12em; text-transform:uppercase; padding:0.22rem 0.55rem; border-radius:999px; display:inline-block; margin-bottom:0.7rem}
+.tag--no{background:#fee2e2; color:#b91c1c} .tag--mid{background:#fef3c7; color:#b45309} .tag--yes{background:#dcfce7; color:#15803d}
+.opt--yes{border-color:#86efac; box-shadow:0 0 0 3px #f0fdf4}
+
+/* playground */
+.play{margin-top:2.2rem; border:1px dashed var(--line-d); border-radius:14px; padding:clamp(1rem,3vw,1.5rem); background:rgba(255,255,255,0.02)}
+.play__top{display:flex; flex-wrap:wrap; gap:0.8rem 1.2rem; align-items:center; justify-content:space-between; margin-bottom:1.1rem}
+.switch{display:inline-flex; align-items:center; gap:0.6rem; font-family:var(--mono); font-size:0.82rem; color:var(--dark-fg); cursor:pointer; user-select:none}
+.switch input{appearance:none; -webkit-appearance:none; width:2.5rem; height:1.4rem; border-radius:999px; background:#3b4a63; position:relative; cursor:pointer; transition:background .15s; margin:0}
+.switch input::after{content:""; position:absolute; top:0.2rem; left:0.2rem; width:1rem; height:1rem; border-radius:50%; background:#fff; transition:transform .15s}
+.switch input:checked{background:var(--ok)}
+.switch input:checked::after{transform:translateX(1.1rem)}
+.linkbtn{background:none; border:1px solid var(--line-d); color:var(--dark-fg-2); font-family:var(--mono); font-size:0.76rem; border-radius:7px; padding:0.4rem 0.75rem; cursor:pointer}
+.linkbtn:hover{color:#fff; border-color:#3b4d70}
+.panes{display:grid; grid-template-columns:1fr 1fr; gap:1rem}
+@media(max-width:760px){.panes{grid-template-columns:1fr}}
+.pane{background:#fff; color:var(--ink-2); border-radius:12px; overflow:hidden; border:1px solid #2a3a57}
+.pane__head{display:flex; justify-content:space-between; align-items:center; padding:0.55rem 0.9rem; background:#0b1424; color:#c3cddb; font-family:var(--mono); font-size:0.76rem}
+.pane__head b{color:#fff}
+.pane__head .ver{color:#8493a8}
+.pane form{padding:0.95rem 1rem 1rem}
+.pane .fld input,.pane .fld select{width:100%; border:1px solid #cbd5e1; border-radius:6px; padding:0.45rem 0.6rem; font:inherit; font-size:0.9rem; background:#fff; color:var(--ink-2)}
+.pane .fld--bad input,.pane .fld--bad select{border-color:#f87171; background:#fff7f7}
+.pane .ack{cursor:pointer}
+.pane .ack input{margin:0.15rem 0 0; accent-color:#b45309}
+.pane__actions{display:flex; gap:0.6rem; align-items:center; flex-wrap:wrap}
+.pane__actions button{font:inherit; font-weight:600; font-size:0.86rem; border-radius:6px; padding:0.45rem 0.95rem; cursor:pointer; border:1px solid transparent}
+.pane__actions .save{background:var(--ink); color:#fff}
+.pane__actions .save:hover{background:#1e293b}
+.pane__actions .reload{background:#fff; border-color:#cbd5e1; color:var(--slate)}
+.pane .ok{background:#f0fdf4; border:1px solid #bbf7d0; color:#166534; border-radius:8px; padding:0.5rem 0.7rem; font-size:0.82rem; margin-bottom:0.8rem}
+.guide{margin:0 0 1.1rem; padding-left:1.2rem; color:#c3cddb; font-size:0.93rem}
+.guide li{margin-bottom:0.25rem}
+.guide b{color:#fff}
+.hist{margin-top:1rem; background:#0a1220; border:1px solid var(--line-d); border-radius:10px; padding:0.8rem 1rem; font-family:var(--mono); font-size:0.76rem; color:#9aa7b8; max-height:12rem; overflow:auto}
+.hist__t{font-size:0.68rem; letter-spacing:0.12em; text-transform:uppercase; color:#6b7a90; margin-bottom:0.4rem}
+.hist ol{margin:0; padding-left:1.3rem}
+.hist li{margin:0.15rem 0}
+.hist .lost{color:var(--err-2)} .hist .saved{color:var(--ok-2)} .hist .refused{color:var(--warn-2)}
+.stored{font-family:var(--mono); font-size:0.76rem; color:#9aa7b8; margin-top:0.8rem}
+.stored b{color:#e6ebf2; font-weight:500}
+
+/* options table */
+.otab{width:100%; border-collapse:collapse; margin-top:1.4rem; font-size:0.9rem}
+.otab th,.otab td{text-align:left; padding:0.6rem 0.75rem; border-bottom:1px solid var(--line); vertical-align:top}
+.otab th{font-family:var(--mono); font-size:0.68rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--muted); font-weight:500}
+.otab code{background:var(--paper-2); padding:0.1em 0.36em; border-radius:4px; color:var(--slate); overflow-wrap:anywhere}
+.tablewrap{overflow-x:auto}
+.docs-row{display:flex; flex-wrap:wrap; gap:0.8rem; margin-top:1.6rem}
+.btn--line{border:1px solid var(--line); color:var(--ink-2); background:var(--card)}
+.btn--line:hover{border-color:#b8c2cf}
+</style>
+</head>
+<body>
+
+<div id="toasts" aria-live="polite" aria-atomic="false"></div>
+
+<!-- nav -->
+<nav class="nav">
+  <div class="wrap nav__in">
+    <a class="brand" href="#top"><span class="glyph" aria-hidden="true"></span><b>lock-form</b><span class="crumb">/ form-concurrency</span></a>
+    <div class="nav__links">
+      <a class="hide-sm" href="#problem">Problem</a>
+      <a class="hide-sm" href="#how">How it works</a>
+      <a class="hide-sm" href="#try">Try it</a>
+      <a href="#install">Install</a>
+      <a href="https://github.com/marilenaRM/lock-form" target="_blank" rel="noopener">GitHub&nbsp;↗</a>
+    </div>
+  </div>
+</nav>
+
+<!-- hero -->
+<header class="hero" id="top">
+  <div class="wrap hero__grid">
+    <div>
+      <p class="tagline"><i>◆</i> Symfony&nbsp;7.3+ bundle <span>·</span> PHP&nbsp;8.3+ <span>·</span> MIT</p>
+      <h1>Stop overwriting each other’s <span class="em">edits</span>.</h1>
+      <p class="sub">Alice opens a record, Bob saves it, Alice saves her stale copy and Bob’s change is gone without anyone noticing. This bundle spots it at submit time, like CSRF protection does: a hidden token on every root form, no change to your form types, no dependency on Doctrine.</p>
+
+      <div class="install" role="group" aria-label="Install command">
+        <div class="install__cmd" id="installCmd"><span class="pr">$</span>composer require lock-form/form-concurrency:dev-main</div>
+        <button class="install__copy" id="copyBtn" type="button" aria-label="Copy install command">copy</button>
+      </div>
+      <p class="proto">Prototype, not on Packagist yet: add the GitHub repository first (see <a href="#install" style="color:#fff">Install</a>).</p>
+
+      <div class="cta-row">
+        <a class="btn btn--primary" href="#try">Try it in the page</a>
+        <a class="btn btn--ghost" href="#demo">Watch the demo</a>
+        <a class="btn btn--ghost" href="https://github.com/marilenaRM/lock-form/blob/main/docs/design.md" target="_blank" rel="noopener">Design notes ↗</a>
+      </div>
+    </div>
+
+    <!-- signature: what Alice gets back -->
+    <div class="formcard reveal" aria-hidden="true">
+      <div class="formcard__bar">
+        <span class="dot dot--r"></span><span class="dot dot--y"></span><span class="dot dot--g"></span>
+        <span class="formcard__title">POST /product/1/edit · Alice</span>
+      </div>
+      <div class="formcard__body">
+        <div class="alert">Someone else saved this record while you were editing it. The fields marked below were changed: review them, then tick the confirmation box to save your values anyway.</div>
+        <div class="fld">
+          <label>Name</label>
+          <div class="inp">Mechanical keyboard, US layout</div>
+          <div class="kept">✓ what you typed is kept</div>
+        </div>
+        <div class="fld fld--bad">
+          <label>Price</label>
+          <div class="inp">89.90 €</div>
+          <div class="err">Changed by someone else since you opened the form. Current value: 79.90</div>
+        </div>
+        <label class="ack"><span class="box"></span>I have reviewed these changes: save my values anyway.</label>
+        <span class="fbtn">Save</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- problem -->
+<section class="band" id="problem">
+  <div class="wrap">
+    <div class="split">
+      <div class="reveal">
+        <p class="eyebrow">The lost update</p>
+        <h2 class="head">Two people, one record.<br>One silent loss.</h2>
+      </div>
+      <div class="prose reveal">
+        <p>This is not a race between two processes. The dangerous window is the <em>human</em> time between opening a form and submitting it: minutes, not milliseconds. Whoever saves last wins, and nobody is told.</p>
+        <p>The bundle takes a fingerprint of what the form <em>displays</em> when it is rendered, sends it in a hidden field, and compares it with what is stored when the form comes back. If they differ, the form is invalid: the user keeps what they typed, sees which fields moved and what they hold now, and has to tick a box to save anyway.</p>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat reveal">
+        <div class="n">Automatic</div>
+        <h3>Like CSRF, nothing to wire</h3>
+        <p>Enable the bundle and every root form is protected. Your form types don’t change. GET forms (searches, filters) are left alone.</p>
+      </div>
+      <div class="stat reveal">
+        <div class="n">Storage-agnostic</div>
+        <h3>Entities, DTOs, arrays</h3>
+        <p>It hashes the view data of each field, not your object. No version column, no migration, no Doctrine required.</p>
+      </div>
+      <div class="stat reveal">
+        <div class="n">Field-level</div>
+        <h3>Says what changed</h3>
+        <p>An error on each field that moved, with its current value. A change the user can’t overwrite (a field outside the form, a disabled one) is not a conflict.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- demo gifs -->
+<section class="band band--tint" id="demo">
+  <div class="wrap">
+    <p class="eyebrow reveal">The demo app</p>
+    <h2 class="head reveal">Alice and Bob, side by side.</h2>
+    <p class="lead reveal">A small Symfony back-office ships in <code>demo/</code>, with a switch to turn the protection off and a history of every save. It needs PHP and a database, so it runs on your machine rather than here. These recordings are played by Playwright against it.</p>
+
+    <div class="gifs">
+      <figure class="gif reveal">
+        <img src="demo.gif" alt="Recording: without the protection Alice silently puts the old price back; with it, her save is refused and the price field shows Bob's value" loading="lazy">
+        <figcaption><b>Classic form</b>Protection off, Alice’s save brings the old price back. Protection on, it is refused, the price field shows Bob’s value and her new name is kept.</figcaption>
+      </figure>
+      <figure class="gif reveal">
+        <img src="demo-live.gif" alt="Recording of the same scenario with a Symfony UX LiveComponent form" loading="lazy">
+        <figcaption><b>LiveComponent</b>The same form as a LiveComponent, which submits on every re-render. The conflict is caught on the first re-render and the save is refused until the box is ticked.</figcaption>
+      </figure>
+    </div>
+
+    <div class="runbox reveal">
+      <span>Run it yourself, Docker only:</span>
+<pre class="code">git clone https://github.com/marilenaRM/lock-form &amp;&amp; cd lock-form/demo
+docker compose up --build   <span class="tok-c"># http://localhost:8080</span></pre>
+    </div>
+  </div>
+</section>
+
+<!-- how it works -->
+<section class="band band--dark" id="how">
+  <div class="wrap">
+    <p class="eyebrow reveal">How it works</p>
+    <h2 class="head reveal">Hash what the form shows, at the right moment.</h2>
+    <p class="lead reveal">Not the object: what each editable field displays, after its own data transformers. Dates are already formatted, a related entity is reduced to its id, an enum to its scalar. Two loads of the same state always give the same fingerprint.</p>
+
+    <div class="api-grid" style="margin-top:2.4rem">
+      <div class="reveal">
+        <span class="code-label">One edit, two requests</span>
+<pre class="code flow">GET  /article/42/edit
+  find(42) → createForm($article)
+  <span class="y">POST_SET_DATA</span> (root, after the fields are filled)
+    F1 = fingerprint of what is displayed
+  render &lt;input hidden _concurrency_token=F1&gt;
+
+POST /article/42/edit
+  find(42)  <span class="tok-c">← current state in storage</span>
+  <span class="y">PRE_SUBMIT</span> (root, before the fields)
+    F2 = fingerprint of what is stored now
+    F1 = F2 ? <span class="g">accept</span> : <span class="r">conflict, changed paths</span>
+  <span class="y">POST_SUBMIT</span>
+    global error + one error per changed field</pre>
+      </div>
+      <div class="reveal stack">
+        <div>
+          <span class="code-label">The token</span>
+<pre class="code"><span class="tok-c">// base64url(JSON), one entry per editable leaf field</span>
+{
+  <span class="tok-s">"name"</span>:         <span class="tok-s">"3f9a…"</span>,
+  <span class="tok-s">"price"</span>:        <span class="tok-s">"b07c…"</span>,
+  <span class="tok-s">"author.email"</span>: <span class="tok-s">"91de…"</span>,
+  <span class="tok-s">"tags.1"</span>:       <span class="tok-s">"e44b…"</span>
+}
+<span class="tok-c">// truncated HMAC-SHA256 keyed with kernel.secret</span></pre>
+        </div>
+        <div class="prose">
+          <p>Keeping the paths is what lets the form say <em>which</em> fields changed. The key isn’t there to stop tampering: it stops anyone from brute-forcing a value the form never shows, such as a <code>PasswordType</code>.</p>
+          <p>The acknowledgement box carries the token of the state the user was shown. Sending the same form again is still a conflict, and if someone saves in between, a new conflict comes with a new box.</p>
+        </div>
+      </div>
+    </div>
+
+    <table class="verbs reveal" style="margin-top:2.4rem">
+      <thead><tr><th>Event</th><th>Priority</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td><code>POST_SET_DATA</code></td><td>-1024</td><td>After the form’s own listeners, so fields they add are included.</td></tr>
+        <tr><td><code>PRE_SUBMIT</code></td><td>1024</td><td>Before the form’s own listeners, which may rebuild fields from the submitted values.</td></tr>
+        <tr><td><code>POST_SUBMIT</code></td><td>0</td><td>A field clears its errors on submit, so field errors can only be attached afterwards.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- playground -->
+<section class="band band--dark" id="try" style="padding-top:0">
+  <div class="wrap">
+    <p class="eyebrow reveal">Try it here</p>
+    <h2 class="head reveal">Be Alice and Bob.</h2>
+    <p class="lead reveal">A simulation in your browser, with the same rules and messages as the bundle. The real thing runs server side; the demo app above is the place to see it with Symfony.</p>
+
+    <div class="play reveal">
+      <div class="play__top">
+        <label class="switch"><input type="checkbox" id="protect" checked> <span id="protectLabel">Protection on</span></label>
+        <button class="linkbtn" type="button" id="resetBtn">Reset the demo</button>
+      </div>
+      <ol class="guide">
+        <li>Both forms are open on the same version of the product.</li>
+        <li><b>Bob</b> changes the price and saves.</li>
+        <li><b>Alice</b>, who still sees the old price, changes the name and saves.</li>
+      </ol>
+
+      <div class="panes">
+        <div class="pane" data-who="alice"></div>
+        <div class="pane" data-who="bob"></div>
+      </div>
+
+      <div class="stored" id="stored"></div>
+      <div class="hist">
+        <div class="hist__t">Save history</div>
+        <ol id="hist"></ol>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- options considered -->
+<section class="band" id="why">
+  <div class="wrap">
+    <p class="eyebrow reveal">Why this approach</p>
+    <h2 class="head reveal">Four ways to do it, one that fits.</h2>
+    <p class="lead reveal">The full reasoning, with the tests that back it, is in the <a href="https://github.com/marilenaRM/lock-form/blob/main/docs/design.md" target="_blank" rel="noopener">design notes</a>.</p>
+
+    <div class="opts">
+      <div class="opt reveal"><span class="tag tag--no">Rejected</span><h3>A. Lock the record while it’s open</h3><p>Over HTTP a lock that lasts as long as someone thinks needs a TTL, a heartbeat and a “take over” button, and once it expires the overwrite goes through anyway. Useful later as a non-blocking “Bob is editing” hint.</p></div>
+      <div class="opt reveal"><span class="tag tag--mid">Complement</span><h3>B. Doctrine <code>#[ORM\Version]</code></h3><p>The only truly atomic option, but Doctrine-only, one column per entity, false conflicts on fields the form doesn’t show, and the version still has to travel in the form.</p></div>
+      <div class="opt reveal"><span class="tag tag--no">Rejected, tested</span><h3>C. Hash the object in <code>PRE_SET_DATA</code></h3><p>The event fires before the fields are filled, and an object hash changes for the wrong reasons: properties outside the form, time zones, proxies, collections.</p></div>
+      <div class="opt opt--yes reveal"><span class="tag tag--yes">Kept</span><h3>D. Fingerprint what the form displays</h3><p>View data of each editable field, taken after <code>POST_SET_DATA</code> and again in <code>PRE_SUBMIT</code>. Only what this user could change is compared.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- honest -->
+<section class="band band--tint" id="limits">
+  <div class="wrap">
+    <p class="eyebrow reveal">Know the limits</p>
+    <h2 class="head reveal">It detects. It doesn’t lock.</h2>
+    <p class="lead reveal">It protects users from each other’s mistakes, not from someone acting in bad faith.</p>
+
+    <div class="honest">
+      <div class="hcol hcol--yes reveal">
+        <h3>✓ What it covers</h3>
+        <ul>
+          <li>Back-office edit forms where two people may open the same record minutes apart.</li>
+          <li>Entities, DTOs or arrays, embedded forms, collections and <code>EntityType</code> relations.</li>
+          <li>LiveComponent forms using <code>ComponentWithFormTrait</code>, as long as the record is a <code>LiveProp</code>.</li>
+        </ul>
+      </div>
+      <div class="hcol hcol--no reveal">
+        <h3>✗ What it doesn’t</h3>
+        <ul>
+          <li>Two submissions in the same few milliseconds both pass the check. Add <code>#[ORM\Version]</code> where that matters.</li>
+          <li>An object kept in the session instead of reloaded on each request: nothing to compare against.</li>
+          <li>API clients and <code>PATCH</code>-style partial submits must send the token back or turn the option off, as with CSRF.</li>
+        </ul>
+      </div>
+    </div>
+    <p class="note-line reveal">The controller must only save when <code>isValid()</code> is true. A form in conflict has still modified the object in memory, like any invalid form.</p>
+  </div>
+</section>
+
+<!-- features -->
+<section class="band">
+  <div class="wrap">
+    <p class="eyebrow reveal">In the box</p>
+    <h2 class="head reveal">The awkward cases are handled.</h2>
+
+    <div class="feat">
+      <div class="fcard reveal"><span class="ic">⚡</span><h3>LiveComponent-safe</h3><p>A component submits on every keystroke. The explicit acknowledgement stops a re-render from silently swapping the token.</p></div>
+      <div class="fcard reveal"><span class="ic">🙈</span><h3>Never discloses</h3><p>A field that doesn’t render its value, like a password, only says it changed. The conflict shows nothing the form itself hides.</p></div>
+      <div class="fcard reveal"><span class="ic">🏷️</span><h3>Readable values</h3><p>A choice shows its label (“Tutorial”), not its value (“2”), with the field’s own translation domain.</p></div>
+      <div class="fcard reveal"><span class="ic">🧺</span><h3>Collections</h3><p>Entries the user adds or removes are fine. Entries someone else added are reported on the collection.</p></div>
+      <div class="fcard reveal"><span class="ic">🔎</span><h3>GET forms skipped</h3><p>Searches and filters change nothing and are reached by plain links, so they get no token.</p></div>
+      <div class="fcard reveal"><span class="ic">🧩</span><h3>Dependent fields</h3><p>Fields rebuilt from the submitted values in <code>PRE_SUBMIT</code> don’t raise false conflicts.</p></div>
+      <div class="fcard reveal"><span class="ic">🌍</span><h3>English &amp; French</h3><p>Messages live in the <code>form_concurrency</code> translation domain, both languages included.</p></div>
+      <div class="fcard reveal"><span class="ic">✅</span><h3>Tested</h3><p>PHPStan level 9 and PHPUnit, plus exploration tests that prove why the rejected options fail and browser runs of the demo.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- install -->
+<section class="band band--tint" id="install">
+  <div class="wrap">
+    <div class="split">
+      <div class="reveal">
+        <p class="eyebrow">Get started</p>
+        <h2 class="head">Three steps,<br>no form to touch.</h2>
+        <p class="lead">The bundle is a prototype and isn’t on Packagist yet, so Composer installs it from GitHub.</p>
+      </div>
+      <div class="reveal">
+        <div class="steps">
+          <div class="step"><div class="step__n"></div><div class="step__b"><h3>Require the package</h3>
+<pre class="code"><span class="tok-v">composer</span> config repositories.lock-form vcs https://github.com/marilenaRM/lock-form
+<span class="tok-v">composer</span> require lock-form/form-concurrency:dev-main</pre></div></div>
+          <div class="step"><div class="step__n"></div><div class="step__b"><h3>Enable the bundle</h3>
+<pre class="code"><span class="tok-c">// config/bundles.php</span>
+<span class="tok-k">return</span> [
+    <span class="tok-c">// ...</span>
+    <span class="tok-v">LockForm\FormConcurrency\FormConcurrencyBundle</span>::<span class="tok-k">class</span> => [<span class="tok-s">'all'</span> => <span class="tok-k">true</span>],
+];</pre><p style="margin-top:0.7rem">Every root form is now protected, except GET forms. Your edit action must load the record on every request, which <code>find()</code> or an argument resolver already does.</p></div></div>
+          <div class="step"><div class="step__n"></div><div class="step__b"><h3>Place the confirmation box <span style="font-weight:400;color:var(--muted)">(optional)</span></h3><p><code>form_end()</code> renders it. To put it next to your submit button:</p>
+<pre class="code">{% <span class="tok-k">if</span> form._concurrency_token_acknowledged <span class="tok-k">is defined</span> %}
+    {{ <span class="tok-f">form_row</span>(form._concurrency_token_acknowledged) }}
+{% <span class="tok-k">endif</span> %}</pre></div></div>
+        </div>
+
+        <div class="tablewrap">
+        <table class="otab">
+          <thead><tr><th>Where</th><th>Option</th><th>Default</th></tr></thead>
+          <tbody>
+            <tr><td>form</td><td><code>concurrency_protection</code></td><td><code>true</code></td></tr>
+            <tr><td>form</td><td><code>concurrency_field_name</code></td><td><code>_concurrency_token</code></td></tr>
+            <tr><td><code>config/packages/form_concurrency.yaml</code></td><td><code>enabled</code></td><td><code>true</code></td></tr>
+            <tr><td><code>config/packages/form_concurrency.yaml</code></td><td><code>field_name</code></td><td><code>_concurrency_token</code></td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <span class="code-label" style="color:var(--muted); margin-top:2rem">Outside a Symfony application</span>
+<pre class="code"><span class="tok-v">$factory</span> = <span class="tok-f">Forms</span>::<span class="tok-f">createFormFactoryBuilder</span>()
+    -><span class="tok-f">addExtension</span>(<span class="tok-k">new</span> <span class="tok-f">FormConcurrencyExtension</span>(<span class="tok-v">$secret</span>, <span class="tok-v">$translator</span>))
+    -><span class="tok-f">getFormFactory</span>();</pre>
+
+        <div class="docs-row">
+          <a class="btn btn--line" href="https://github.com/marilenaRM/lock-form#usage" target="_blank" rel="noopener">README ↗</a>
+          <a class="btn btn--line" href="https://github.com/marilenaRM/lock-form/blob/main/docs/design.md" target="_blank" rel="noopener">Design notes ↗</a>
+          <a class="btn btn--line" href="https://github.com/marilenaRM/lock-form/blob/main/demo/README.md" target="_blank" rel="noopener">Demo app ↗</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- footer -->
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot__grid">
+      <div>
+        <a class="brand" href="#top" style="font-size:1.05rem"><span class="glyph" aria-hidden="true"></span><b>lock-form</b><span class="crumb">/ form-concurrency</span></a>
+        <p>Detects concurrent edits on Symfony forms with an automatic, storage-agnostic fingerprint token.</p>
+        <div class="kofi">If it saved someone’s changes, <a href="https://ko-fi.com/marilenarm" target="_blank" rel="noopener">buy me a coffee ☕</a></div>
+      </div>
+      <div class="foot__links">
+        <a href="https://github.com/marilenaRM/lock-form" target="_blank" rel="noopener">GitHub ↗</a>
+        <a href="https://github.com/marilenaRM/lock-form/blob/main/docs/design.md" target="_blank" rel="noopener">Design notes ↗</a>
+        <a href="https://github.com/marilenaRM/lock-form/blob/main/demo/README.md" target="_blank" rel="noopener">Demo app ↗</a>
+        <a href="https://marilenarm.github.io/turbo-toast-bundle/" target="_blank" rel="noopener">Also: TurboToastBundle ↗</a>
+      </div>
+    </div>
+    <div class="foot__bottom">
+      <span>MIT License · Built by Marilena Ruffelaere</span>
+      <span>PHP 8.3+ · Symfony 7.3+ · Symfony UX LiveComponent</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var region = document.getElementById('toasts');
+  function spawn(message, type, delay){
+    var el = document.createElement('div');
+    el.className = 'toast toast--' + (type || 'success');
+    el.setAttribute('role', 'status');
+    el.textContent = message;
+    region.appendChild(el);
+    void el.offsetWidth;
+    el.classList.add('toast--in');
+    var t = setTimeout(dismiss, delay || 2500);
+    function dismiss(){ clearTimeout(t); el.classList.remove('toast--in'); setTimeout(function(){ el.remove(); }, 300); }
+    el.addEventListener('click', dismiss);
+  }
+
+  var copyBtn = document.getElementById('copyBtn');
+  copyBtn.addEventListener('click', function(){
+    var cmd = 'composer require lock-form/form-concurrency:dev-main';
+    var done = function(){ copyBtn.textContent = 'copied'; spawn('Copied to clipboard');
+      setTimeout(function(){ copyBtn.textContent = 'copy'; }, 1600); };
+    if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(cmd).then(done, done); } else { done(); }
+  });
+
+  /* ---------- playground: same rules as the bundle, simulated ---------- */
+  var FIELDS = [
+    {key:'name', label:'Name', type:'text'},
+    {key:'price', label:'Price (€)', type:'text'},
+    {key:'category', label:'Category', type:'select', choices:['Accessories','Peripherals']}
+  ];
+  var INITIAL = {name:'Mechanical keyboard', price:'89.90', category:'Accessories', stock:12};
+  var MSG = {
+    conflict:'Someone else saved this record while you were editing it. The fields marked below were changed: review them, then tick the confirmation box to save your values anyway.',
+    changedTo:'Changed by someone else since you opened the form. Current value: ',
+    cleared:'Cleared by someone else since you opened the form.',
+    ack:'I have reviewed these changes: save my values anyway.'
+  };
+  var stored, version, history, panes = {};
+  var protect = document.getElementById('protect');
+
+  // the "token": what the form displayed, field by field (the bundle hashes it; plain values are enough here)
+  function fingerprint(rec){ var f = {}; FIELDS.forEach(function(d){ f[d.key] = String(rec[d.key]).trim(); }); return f; }
+  function changed(a, b){ return FIELDS.filter(function(d){ return a[d.key] !== b[d.key]; }).map(function(d){ return d.key; }); }
+  function copy(o){ return JSON.parse(JSON.stringify(o)); }
+  function cap(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
+
+  function load(who){
+    panes[who].values = fingerprint(stored);
+    panes[who].token = fingerprint(stored);       // token rendered with the form
+    panes[who].ackToken = null;                   // state the acknowledgement box was shown for
+    panes[who].errors = null;
+    panes[who].ok = null;
+    panes[who].version = version;
+  }
+
+  function reset(){
+    stored = copy(INITIAL); version = 1; history = [];
+    panes = {alice:{}, bob:{}};
+    load('alice'); load('bob');
+    renderAll();
+  }
+
+  function save(who){
+    var p = panes[who], name = cap(who);
+    var current = fingerprint(stored);
+    var acked = p.form.querySelector('[name=ack]');
+    var ackValid = acked && acked.checked && p.ackToken && changed(p.ackToken, current).length === 0;
+    var diff = changed(p.token, current);
+
+    if(protect.checked && diff.length && !ackValid){
+      p.errors = {};
+      diff.forEach(function(k){ p.errors[k] = current[k] === '' ? MSG.cleared : MSG.changedTo + current[k]; });
+      p.ackToken = current;                         // the box only covers the state shown now
+      p.ok = null;
+      history.push({cls:'refused', text: name + '’s save refused: ' + diff.join(', ') + ' changed since v' + p.version});
+      renderAll();
+      return;
+    }
+
+    var overwrote = changed(p.token, current).filter(function(k){ return p.values[k] !== current[k]; });
+    var before = copy(stored);
+    FIELDS.forEach(function(d){ stored[d.key] = p.values[d.key]; });
+    var edited = changed(fingerprint(before), fingerprint(stored));
+    version++;
+    var line = name + ' saved v' + version + (edited.length ? ': ' + edited.map(function(k){ return k + ' → ' + stored[k]; }).join(', ') : ' (nothing changed)');
+    var cls = 'saved';
+    if(!protect.checked && overwrote.length){
+      line += '. Silently put back ' + overwrote.map(function(k){ return k + ' ' + before[k] + ' → ' + stored[k]; }).join(', ');
+      cls = 'lost';
+    } else if(ackValid){ line += ' (after reviewing the conflict)'; }
+    history.push({cls:cls, text:line});
+    Object.keys(panes).forEach(function(k){ panes[k].ok = null; });
+    load(who);
+    panes[who].ok = 'Saved.';
+    renderAll();
+  }
+
+  function bobStock(){
+    stored.stock += 1; version++;
+    history.push({cls:'saved', text:'Bob adjusted the stock to ' + stored.stock + ' (v' + version + '). Alice’s form doesn’t show the stock, so it won’t be a conflict.'});
+    renderAll();
+  }
+
+  function renderPane(who){
+    var p = panes[who], el = document.querySelector('.pane[data-who="' + who + '"]');
+    var stale = p.version !== version;
+    var h = '<div class="pane__head"><span><b>' + cap(who) + '</b> · edit product</span><span class="ver">opened v' + p.version + (stale ? ' · <span style="color:#fbbf24">stale</span>' : '') + '</span></div><form novalidate>';
+    if(p.errors){ h += '<div class="alert" role="alert">' + MSG.conflict + '</div>'; }
+    if(p.ok){ h += '<div class="ok">' + p.ok + '</div>'; }
+    FIELDS.forEach(function(d){
+      var id = who + '-' + d.key, bad = p.errors && p.errors[d.key];
+      h += '<div class="fld' + (bad ? ' fld--bad' : '') + '"><label for="' + id + '">' + d.label + '</label>';
+      if(d.type === 'select'){
+        h += '<select id="' + id + '" name="' + d.key + '">' + d.choices.map(function(c){ return '<option' + (c === p.values[d.key] ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select>';
+      } else {
+        h += '<input id="' + id + '" name="' + d.key + '" autocomplete="off">';
+      }
+      if(bad){ h += '<div class="err"></div>'; }
+      h += '</div>';
+    });
+    if(p.errors){ h += '<label class="ack"><input type="checkbox" name="ack"> <span>' + MSG.ack + '</span></label>'; }
+    h += '<div class="pane__actions"><button type="submit" class="save">Save</button><button type="button" class="reload">Reload</button>';
+    if(who === 'bob'){ h += '<button type="button" class="reload stockbtn">Adjust the stock instead</button>'; }
+    h += '</div></form>';
+    el.innerHTML = h;
+    var form = el.querySelector('form');
+    p.form = form;
+    FIELDS.forEach(function(d){
+      var input = form.querySelector('[name=' + d.key + ']');
+      if(d.type !== 'select'){ input.value = p.values[d.key]; }      // set as property: no markup from user text
+      input.addEventListener('input', function(){ p.values[d.key] = input.value; p.ok = null; });
+      if(p.errors && p.errors[d.key]){ input.parentNode.querySelector('.err').textContent = p.errors[d.key]; }
+    });
+    form.addEventListener('submit', function(e){ e.preventDefault(); save(who); });
+    form.querySelector('.reload').addEventListener('click', function(){ load(who); renderAll(); });
+    var sb = form.querySelector('.stockbtn'); if(sb){ sb.addEventListener('click', bobStock); }
+  }
+
+  function renderAll(){
+    renderPane('alice'); renderPane('bob');
+    var s = document.getElementById('stored');
+    s.textContent = '';
+    s.appendChild(document.createTextNode('Stored now (v' + version + '): '));
+    var b = document.createElement('b');
+    b.textContent = stored.name + ' · ' + stored.price + ' € · ' + stored.category + ' · stock ' + stored.stock;
+    s.appendChild(b);
+    var ol = document.getElementById('hist');
+    ol.textContent = '';
+    if(!history.length){ var li0 = document.createElement('li'); li0.textContent = 'v1 created: ' + INITIAL.name + ', ' + INITIAL.price + ' €'; ol.appendChild(li0); }
+    history.forEach(function(e){ var li = document.createElement('li'); li.className = e.cls; li.textContent = e.text; ol.appendChild(li); });
+    ol.parentNode.scrollTop = ol.parentNode.scrollHeight;
+  }
+
+  protect.addEventListener('change', function(){
+    document.getElementById('protectLabel').textContent = protect.checked ? 'Protection on' : 'Protection off';
+  });
+  document.getElementById('resetBtn').addEventListener('click', reset);
+  reset();
+
+  // scroll reveal
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var items = document.querySelectorAll('.reveal');
+  if(reduce || !('IntersectionObserver' in window)){
+    items.forEach(function(el){ el.classList.add('in'); });
+  } else {
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
+    }, {threshold:0.12, rootMargin:'0px 0px -40px 0px'});
+    items.forEach(function(el){ io.observe(el); });
+  }
+})();
+</script>
+</body>
+</html>
