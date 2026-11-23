@@ -7,6 +7,8 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
 COPY composer.json /app/
+COPY config /app/config
+COPY public /app/public
 COPY src /app/src
 COPY translations /app/translations
 COPY demo /app/demo
