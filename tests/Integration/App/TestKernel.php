@@ -9,6 +9,7 @@ use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
 use Symfony\Bundle\FrameworkBundle\Kernel\MicroKernelTrait;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\HttpKernel\Kernel;
+use Symfony\Component\Routing\Loader\Configurator\RoutingConfigurator;
 
 final class TestKernel extends Kernel
 {
@@ -47,5 +48,22 @@ final class TestKernel extends Kernel
         // Nothing in this kernel injects the form factory, so the container would otherwise remove it.
         $container->services()->alias('test.form.factory', 'form.factory')->public();
         $container->services()->alias('test.event_dispatcher', 'event_dispatcher')->public();
+
+        // The "presence" environment turns the presence indicator on; every other one keeps the defaults.
+        if ('presence' === $this->environment) {
+            $container->extension('framework', ['cache' => ['pools' => ['test.presence_pool' => ['adapter' => 'cache.adapter.array']]]]);
+            $container->extension('form_concurrency', ['presence' => [
+                'cache_pool' => 'test.presence_pool',
+                'identity' => HeaderPresenceIdentity::class,
+            ]]);
+            $container->services()->set(HeaderPresenceIdentity::class);
+        }
+    }
+
+    protected function configureRoutes(RoutingConfigurator $routes): void
+    {
+        if ('presence' === $this->environment) {
+            $routes->import('@FormConcurrencyBundle/config/routes.php');
+        }
     }
 }

@@ -984,6 +984,13 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     enabled?: bool|Param, // Default: true
  *     field_name?: scalar|Param|null, // Default: "_concurrency_token"
  *     conflict_event?: bool|Param, // Dispatch a ConcurrencyConflictEvent on every conflict. // Default: false
+ *     presence?: bool|array{ // A non-blocking "someone else is editing this record" indicator. Off by default.
+ *         enabled?: bool|Param, // Default: false
+ *         cache_pool?: scalar|Param|null, // Where open tabs are kept. // Default: "cache.app"
+ *         identity?: scalar|Param|null, // Service implementing PresenceIdentity; the logged-in user by default. // Default: null
+ *         interval?: int|Param, // Seconds between two heartbeats of a tab. // Default: 15
+ *         ttl?: int|Param, // Seconds without a heartbeat before a tab counts as closed. Browsers slow the timers of background tabs down to one a minute. // Default: 90
+ *     },
  * }
  * @psalm-type ConfigType = array{
  *     imports?: ImportsConfig,

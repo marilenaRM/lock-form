@@ -66,6 +66,7 @@ form ul:not([data-tags-list]):not(.changes) { list-style: none; padding: .5rem .
 .acknowledgement > div { display: flex; gap: .5rem; align-items: baseline; margin: 0; }
 .acknowledgement input { order: -1; }
 .acknowledgement label { display: inline; font-weight: 600; margin: 0; }
+.concurrency-presence { margin: 0 0 .75rem; padding: .5rem .75rem; background: #fff4e0; color: #7a4b00; border-left: 3px solid #e0a030; border-radius: 4px; }
 .flash { margin: 0 0 .75rem; padding: .5rem .75rem; background: #e5f3ea; color: var(--ok); border-radius: 4px; }
 .badge-live { display: inline-block; margin-left: .35rem; padding: 0 .4rem; border-radius: 4px; background: #e8eefc; color: var(--alice); font-size: .8rem; }
 .mode-note { margin: -.5rem 0 1rem; color: var(--muted); }

@@ -1,10 +1,11 @@
 <div {{ attributes }}>
     {# Every field change re-renders the component, which submits the form to the server: the case the protection must survive. #}
-    {{ form_start(form, {attr: {
+    {# Merged with form.vars.attr, which carries the presence indicator: a plain attr would replace it. #}
+    {{ form_start(form, {attr: form.vars.attr|merge({
         'data-model': 'on(change)|*',
         'data-action': 'live#action:prevent',
         'data-live-action-param': 'save',
-    }}) }}
+    })}) }}
         {{ form_errors(form) }}
         {{ form_row(form.name) }}
         {{ form_row(form.priceInCents) }}

@@ -26,6 +26,18 @@
                 <source>form_concurrency.acknowledge</source>
                 <target>J’ai pris connaissance de ces changements : enregistrer mes valeurs malgré tout.</target>
             </trans-unit>
+            <trans-unit id="form_concurrency.presence.someone">
+                <source>form_concurrency.presence.someone</source>
+                <target>Quelqu’un d’autre modifie aussi cette fiche.</target>
+            </trans-unit>
+            <trans-unit id="form_concurrency.presence.one">
+                <source>form_concurrency.presence.one</source>
+                <target>{{ name }} modifie aussi cette fiche.</target>
+            </trans-unit>
+            <trans-unit id="form_concurrency.presence.many">
+                <source>form_concurrency.presence.many</source>
+                <target>{{ names }} modifient aussi cette fiche.</target>
+            </trans-unit>
         </body>
     </file>
 </xliff>

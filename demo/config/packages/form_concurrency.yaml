@@ -1,5 +1,10 @@
 form_concurrency:
     conflict_event: true
+    # The demo turns the presence indicator on to show it. In a real application, measure the conflicts first:
+    # see "Presence indicator" in the bundle README.
+    presence:
+        enabled: true
+        identity: App\Presence\DemoPresenceIdentity
 
 when@test:
     services:

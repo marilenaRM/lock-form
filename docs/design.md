@@ -33,8 +33,8 @@ goes through. You still need a check at submit time.
 
 Where it does help is UX. Telling someone *before* they start typing that "Bob is editing this record"
 avoids the conflict instead of reporting it. If that need turns out to be real, it can be built on top of
-the submit-time check as a non-blocking presence indicator (Symfony Lock with a TTL, or Mercure). We did not
-prototype it.
+the submit-time check as a non-blocking presence indicator. The bundle now has one, off by default: see
+[section 7](#7-the-presence-indicator-opt-in).
 
 ### B. Doctrine optimistic locking (`#[ORM\Version]`): kept as a complement, not as the base
 
@@ -262,4 +262,43 @@ actually fail, I disabled the detection by hand (`conflict = false`) and 25 test
 
 1. Try the prototype on a real dashboard form, with `conflict_event` turned on to count the conflicts. Doctrine
    and `EntityType` are covered by the demo; a real form will tell whether its own types and listeners hold up.
-2. If the figures confirm the need, add the non-blocking presence indicator (option A) on top.
+2. If the figures confirm the need, turn on the presence indicator (section 7) for the forms concerned, and
+   check that the conflict count goes down.
+
+## 7. The presence indicator (opt-in)
+
+What is left of option A once the lock is gone: telling people, while they type, that someone else has the same
+record open. It blocks nothing; the token is still what protects the data, and the indicator only makes a
+conflict less likely. It is off by default (`form_concurrency.presence.enabled`), and the README explains how to
+decide from the conflict figures whether to turn it on.
+
+Choices made:
+
+- **Polling, not Mercure.** A tab posts a heartbeat every 15 s and reads who else is there in the answer.
+  Mercure would push arrivals a few seconds sooner, but departures still need heartbeats (a closed tab
+  publishes nothing reliable), and it means a hub to run. Presence changes on the scale of minutes; polling is
+  enough, and needs no dependency. If it turns out not to be, the endpoint can publish to a hub later without
+  changing the form side.
+- **The cache, not Symfony Lock.** A presence is a list of tabs with an expiry, not a mutual exclusion. One cache
+  item per record holds its open tabs. Read, change, write is not atomic, so two heartbeats at the same instant
+  can drop a tab until its next one: harmless for a hint, which is why the cache is enough.
+- **The record is the page by default.** The bundle knows nothing about entities, so it cannot name the record.
+  The path of the page (`/article/42/edit`) does, for the usual one edit page per record. A form option names the
+  record when two pages edit it, or in a LiveComponent, whose re-renders come from `/_components/...`.
+- **The identity is signed into the page.** `PresenceIdentity` is asked who is viewing when the form is
+  rendered, and the result goes into a token signed with `kernel.secret`, with the record key. The heartbeat
+  only checks the signature: it needs neither the session nor the firewall, and cannot be used to ask who edits
+  another record or to show up under someone else's name. By default the viewer is the logged-in user; anonymous
+  visitors are not tracked.
+- **Nothing but an attribute on the form.** The type extension adds `data-` attributes to the `<form>` tag through
+  `form.vars.attr`, so there is no Twig dependency and no template to change. A small script with no
+  dependency follows each form from the first time it sees it, so a LiveComponent re-render, which morphs the
+  form, does not change the record it reports on.
+- **Away from the submit check.** It lives in its own type extension and does not touch
+  `ConcurrencyTokenListener`: turning it on or off cannot change what a submission is compared with.
+
+The tests cover the token (round trip, other secret, tampering, malformed input), the store (two people, your own
+tabs, someone with two tabs counted once, expiry, leaving), and the bundle with the indicator off (no attribute,
+no controller, the form options still accepted) and on (attributes kept with the form's own, per-form opt-out,
+GET forms and anonymous visitors left out, French messages, shared key, leaving, forged tokens, no caching).
+The demo turns it on, with the user taken from its `as` parameter.
