@@ -1,0 +1,8 @@
+/vendor/
+/var/
+/.env.local
+/.phpunit.cache/
+/.phpstan.cache/
+/node_modules/
+/playwright-report/
+/test-results/

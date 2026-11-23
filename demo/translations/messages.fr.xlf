@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xliff xmlns="urn:oasis:names:tc:xliff:document:1.2" version="1.2">
+    <file source-language="en" target-language="fr" datatype="plaintext" original="file.ext">
+        <body>
+            <trans-unit id="demo.title">
+                <source>demo.title</source>
+                <target>Deux personnes, une même fiche</target>
+            </trans-unit>
+            <trans-unit id="demo.intro">
+                <source>demo.intro</source>
+                <target>Alice et Bob modifient le même produit en même temps. Suivez les étapes, avec et sans la protection, et regardez l’historique des enregistrements.</target>
+            </trans-unit>
+            <trans-unit id="demo.protection.label">
+                <source>demo.protection.label</source>
+                <target>Protection contre les éditions concurrentes</target>
+            </trans-unit>
+            <trans-unit id="demo.protection.on">
+                <source>demo.protection.on</source>
+                <target>Protection activée</target>
+            </trans-unit>
+            <trans-unit id="demo.protection.off">
+                <source>demo.protection.off</source>
+                <target>Protection désactivée</target>
+            </trans-unit>
+            <trans-unit id="demo.protection.enabled_note">
+                <source>demo.protection.enabled_note</source>
+                <target>Protection activée : un enregistrement fait à partir d’une version périmée est refusé, et les champs modifiés affichent ce qui est en base.</target>
+            </trans-unit>
+            <trans-unit id="demo.protection.disabled_note">
+                <source>demo.protection.disabled_note</source>
+                <target>Protection désactivée : le dernier à enregistrer gagne, sans prévenir personne.</target>
+            </trans-unit>
+            <trans-unit id="demo.reset">
+                <source>demo.reset</source>
+                <target>Réinitialiser la démo</target>
+            </trans-unit>
+            <trans-unit id="demo.empty">
+                <source>demo.empty</source>
+                <target>La base de la démo est vide.</target>
+            </trans-unit>
+            <trans-unit id="demo.user.alice">
+                <source>demo.user.alice</source>
+                <target>Alice</target>
+            </trans-unit>
+            <trans-unit id="demo.user.bob">
+                <source>demo.user.bob</source>
+                <target>Bob</target>
+            </trans-unit>
+            <trans-unit id="demo.editing_as">
+                <source>demo.editing_as</source>
+                <target>Vous êtes %user%.</target>
+            </trans-unit>
+            <trans-unit id="demo.links.products">
+                <source>demo.links.products</source>
+                <target>Liste des produits (filtre GET)</target>
+            </trans-unit>
+            <trans-unit id="demo.links.reload">
+                <source>demo.links.reload</source>
+                <target>Recharger le formulaire produit</target>
+            </trans-unit>
+            <trans-unit id="demo.links.stock">
+                <source>demo.links.stock</source>
+                <target>Ajuster plutôt le stock</target>
+            </trans-unit>
+            <trans-unit id="demo.links.back">
+                <source>demo.links.back</source>
+                <target>Retour à la démo</target>
+            </trans-unit>
+            <trans-unit id="demo.steps.title">
+                <source>demo.steps.title</source>
+                <target>Le scénario</target>
+            </trans-unit>
+            <trans-unit id="demo.steps.1">
+                <source>demo.steps.1</source>
+                <target>Les deux formulaires sont ouverts sur la même version du produit.</target>
+            </trans-unit>
+            <trans-unit id="demo.steps.2">
+                <source>demo.steps.2</source>
+                <target>Bob change le prix et enregistre.</target>
+            </trans-unit>
+            <trans-unit id="demo.steps.3">
+                <source>demo.steps.3</source>
+                <target>Alice, qui voit encore l’ancien prix, change le nom et enregistre.</target>
+            </trans-unit>
+            <trans-unit id="demo.steps.4">
+                <source>demo.steps.4</source>
+                <target>Protection désactivée : l’historique montre qu’Alice a remis l’ancien prix sans le savoir. Protection activée : Alice est prévenue que le prix a changé et voit la valeur de Bob ; son nom est conservé, et c’est elle qui décide de renvoyer.</target>
+            </trans-unit>
+            <trans-unit id="demo.scenarios.title">
+                <source>demo.scenarios.title</source>
+                <target>À essayer aussi</target>
+            </trans-unit>
+            <trans-unit id="demo.scenarios.stock">
+                <source>demo.scenarios.stock</source>
+                <target>Bob ajuste le stock, puis Alice enregistre : pas de conflit, son formulaire n’affiche pas le stock.</target>
+            </trans-unit>
+            <trans-unit id="demo.scenarios.same_value">
+                <source>demo.scenarios.same_value</source>
+                <target>Bob enregistre sans rien changer : Alice n’est pas dérangée.</target>
+            </trans-unit>
+            <trans-unit id="demo.scenarios.tag">
+                <source>demo.scenarios.tag</source>
+                <target>Bob ajoute un tag : Alice est prévenue que la liste des tags a changé.</target>
+            </trans-unit>
+            <trans-unit id="demo.scenarios.filter">
+                <source>demo.scenarios.filter</source>
+                <target>Le filtre par statut de la liste des produits est un formulaire GET : il marche depuis un simple lien, sans jeton.</target>
+            </trans-unit>
+            <trans-unit id="product.field.name">
+                <source>product.field.name</source>
+                <target>Nom</target>
+            </trans-unit>
+            <trans-unit id="product.field.priceInCents">
+                <source>product.field.priceInCents</source>
+                <target>Prix</target>
+            </trans-unit>
+            <trans-unit id="product.field.price">
+                <source>product.field.price</source>
+                <target>Prix</target>
+            </trans-unit>
+            <trans-unit id="product.field.status">
+                <source>product.field.status</source>
+                <target>Statut</target>
+            </trans-unit>
+            <trans-unit id="product.field.category">
+                <source>product.field.category</source>
+                <target>Catégorie</target>
+            </trans-unit>
+            <trans-unit id="product.field.tags">
+                <source>product.field.tags</source>
+                <target>Tags</target>
+            </trans-unit>
+            <trans-unit id="product.field.stock">
+                <source>product.field.stock</source>
+                <target>Stock</target>
+            </trans-unit>
+            <trans-unit id="product.status.draft">
+                <source>product.status.draft</source>
+                <target>Brouillon</target>
+            </trans-unit>
+            <trans-unit id="product.status.active">
+                <source>product.status.active</source>
+                <target>En vente</target>
+            </trans-unit>
+            <trans-unit id="product.status.archived">
+                <source>product.status.archived</source>
+                <target>Archivé</target>
+            </trans-unit>
+            <trans-unit id="product.save">
+                <source>product.save</source>
+                <target>Enregistrer</target>
+            </trans-unit>
+            <trans-unit id="product.saved">
+                <source>product.saved</source>
+                <target>Enregistré.</target>
+            </trans-unit>
+            <trans-unit id="product.tags.add">
+                <source>product.tags.add</source>
+                <target>Ajouter un tag</target>
+            </trans-unit>
+            <trans-unit id="product.tags.remove">
+                <source>product.tags.remove</source>
+                <target>Retirer</target>
+            </trans-unit>
+            <trans-unit id="product.stock.title">
+                <source>product.stock.title</source>
+                <target>Stock de %name%</target>
+            </trans-unit>
+            <trans-unit id="product.list.title">
+                <source>product.list.title</source>
+                <target>Produits</target>
+            </trans-unit>
+            <trans-unit id="product.list.empty">
+                <source>product.list.empty</source>
+                <target>Aucun produit ne correspond.</target>
+            </trans-unit>
+            <trans-unit id="product.filter.all">
+                <source>product.filter.all</source>
+                <target>Tous</target>
+            </trans-unit>
+            <trans-unit id="product.filter.submit">
+                <source>product.filter.submit</source>
+                <target>Filtrer</target>
+            </trans-unit>
+            <trans-unit id="product.filter.hint">
+                <source>product.filter.hint</source>
+                <target>Ce filtre est un formulaire GET, la protection ne s’en occupe donc pas :</target>
+            </trans-unit>
+            <trans-unit id="product.filter.link">
+                <source>product.filter.link</source>
+                <target>les produits en vente, depuis un simple lien</target>
+            </trans-unit>
+            <trans-unit id="history.title">
+                <source>history.title</source>
+                <target>Historique des enregistrements</target>
+            </trans-unit>
+            <trans-unit id="history.empty">
+                <source>history.empty</source>
+                <target>Rien d’enregistré pour l’instant.</target>
+            </trans-unit>
+            <trans-unit id="history.when">
+                <source>history.when</source>
+                <target>Heure</target>
+            </trans-unit>
+            <trans-unit id="history.who">
+                <source>history.who</source>
+                <target>Qui</target>
+            </trans-unit>
+            <trans-unit id="history.form">
+                <source>history.form</source>
+                <target>Formulaire</target>
+            </trans-unit>
+            <trans-unit id="history.changes">
+                <source>history.changes</source>
+                <target>Ce qui a changé</target>
+            </trans-unit>
+            <trans-unit id="history.form.product">
+                <source>history.form.product</source>
+                <target>Produit</target>
+            </trans-unit>
+            <trans-unit id="history.form.stock">
+                <source>history.form.stock</source>
+                <target>Stock</target>
+            </trans-unit>
+        </body>
+    </file>
+</xliff>

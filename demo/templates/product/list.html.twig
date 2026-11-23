@@ -1,0 +1,36 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+<main class="page-narrow">
+    <p><a href="{{ path('demo') }}">{{ 'demo.links.back'|trans }}</a></p>
+    <h1>{{ 'product.list.title'|trans }}</h1>
+    {{ form_start(filter, {attr: {class: 'filter'}}) }}
+        {{ form_row(filter.status) }}
+        <button type="submit">{{ 'product.filter.submit'|trans }}</button>
+    {{ form_end(filter) }}
+    <p class="hint">{{ 'product.filter.hint'|trans }}
+        <a href="{{ path('product_list', {'filter[status]': 'active'}) }}">{{ 'product.filter.link'|trans }}</a></p>
+    <table class="history-table">
+        <thead>
+            <tr>
+                <th scope="col">{{ 'product.field.name'|trans }}</th>
+                <th scope="col">{{ 'product.field.category'|trans }}</th>
+                <th scope="col">{{ 'product.field.status'|trans }}</th>
+                <th scope="col">{{ 'product.field.stock'|trans }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for product in products %}
+                <tr>
+                    <td><a href="{{ path('product_edit', {id: product.id}) }}">{{ product.name }}</a></td>
+                    <td>{{ product.category.name }}</td>
+                    <td>{{ product.status.labelKey|trans }}</td>
+                    <td>{{ product.stock }}</td>
+                </tr>
+            {% else %}
+                <tr><td colspan="4">{{ 'product.list.empty'|trans }}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</main>
+{% endblock %}

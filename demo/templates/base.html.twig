@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="{{ app.request.locale }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}{{ 'demo.title'|trans }}{% endblock %}</title>
+    <link rel="stylesheet" href="/demo.css">
+    <script src="/demo.js" defer></script>
+</head>
+<body class="{% block body_class %}page{% endblock %}">
+    {% for message in app.flashes('success') %}
+        <p class="flash" role="status">{{ message|trans }}</p>
+    {% endfor %}
+    {% block body %}{% endblock %}
+</body>
+</html>

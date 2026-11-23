@@ -1,0 +1,39 @@
+{% extends 'base.html.twig' %}
+
+{% block body_class %}frame{% endblock %}
+
+{% block body %}
+<main>
+    {% if logs is empty %}
+        <p>{{ 'history.empty'|trans }}</p>
+    {% else %}
+        <table class="history-table">
+            <thead>
+                <tr>
+                    <th scope="col">{{ 'history.when'|trans }}</th>
+                    <th scope="col">{{ 'history.who'|trans }}</th>
+                    <th scope="col">{{ 'history.form'|trans }}</th>
+                    <th scope="col">{{ 'history.changes'|trans }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                    <tr>
+                        <td>{{ log.savedAt|date('H:i:s') }}</td>
+                        <td>{{ log.author.labelKey|trans }}
+                            {% if not log.protectionEnabled %}<span class="badge-off">{{ 'demo.protection.off'|trans }}</span>{% endif %}</td>
+                        <td>{{ ('history.form.' ~ log.form)|trans }}</td>
+                        <td>
+                            <ul class="changes">
+                                {% for change in log.changes %}
+                                    <li><strong>{{ ('product.field.' ~ change.field)|trans }}</strong> : <del>{{ change.before }}</del> → <ins>{{ change.after }}</ins></li>
+                                {% endfor %}
+                            </ul>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+</main>
+{% endblock %}

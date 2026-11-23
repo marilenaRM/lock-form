@@ -27,3 +27,22 @@ jobs:
       - run: composer install --no-interaction --no-progress --prefer-dist
 
       - run: composer qa
+
+  demo:
+    name: Demo application
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: demo
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_sqlite, intl
+          coverage: none
+
+      - run: composer install --no-interaction --no-progress --prefer-dist
+
+      - run: composer qa

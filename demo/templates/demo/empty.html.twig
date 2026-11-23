@@ -1,0 +1,12 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+<main class="page-narrow">
+    <h1>{{ 'demo.title'|trans }}</h1>
+    <p>{{ 'demo.empty'|trans }}</p>
+    <form method="post" action="{{ path('demo_reset') }}">
+        <input type="hidden" name="_token" value="{{ csrf_token('demo_reset') }}">
+        <button type="submit">{{ 'demo.reset'|trans }}</button>
+    </form>
+</main>
+{% endblock %}

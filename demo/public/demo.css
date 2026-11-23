@@ -1,0 +1,75 @@
+:root {
+    --ink: #1d2433;
+    --muted: #5b6474;
+    --line: #d7dce4;
+    --paper: #ffffff;
+    --wash: #f4f6f9;
+    --alice: #2f6fdf;
+    --bob: #b4511c;
+    --ok: #1d7a46;
+    --danger: #b3261e;
+    --focus: #ffbf47;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--ink);
+    line-height: 1.45;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--wash); }
+a { color: var(--alice); }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+.page { padding: 1.5rem; }
+.page-narrow { max-width: 60rem; margin: 0 auto; }
+.frame { background: var(--paper); padding: 1rem; }
+.frame-alice { border-top: 6px solid var(--alice); }
+.frame-bob { border-top: 6px solid var(--bob); }
+.frame-title { font-size: 1.1rem; }
+
+.demo-header h1 { margin: 0 0 .25rem; }
+.demo-controls { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; margin: 1rem 0 .5rem; }
+.demo-controls form { margin: 0; }
+.toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--paper); }
+.toggle-option { padding: .4rem 1rem; text-decoration: none; color: var(--ink); }
+.toggle-option.is-active { background: var(--ink); color: var(--paper); }
+.protection-note { margin: 0 0 1rem; padding: .5rem .75rem; border-radius: 6px; }
+.protection-note.is-on { background: #e5f3ea; color: var(--ok); }
+.protection-note.is-off { background: #fbe9e7; color: var(--danger); }
+
+.demo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.editor { background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: .75rem; }
+.editor h2 { margin: 0 0 .5rem; font-size: 1.1rem; }
+.editor-alice h2 { color: var(--alice); }
+.editor-bob h2 { color: var(--bob); }
+.editor iframe { width: 100%; height: 44rem; border: 1px solid var(--line); border-radius: 6px; }
+.editor-links { display: flex; gap: 1rem; margin: .5rem 0 0; font-size: .9rem; }
+.steps, .history { background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: .75rem 1rem; }
+.history iframe { width: 100%; height: 22rem; border: 0; }
+@media (max-width: 60rem) { .demo-grid { grid-template-columns: 1fr; } }
+
+.editing-as { margin: 0 0 .75rem; color: var(--muted); }
+form > div, fieldset { margin-bottom: .6rem; }
+label, legend { display: block; font-weight: 600; margin-bottom: .2rem; }
+input[type="text"], input[type="number"], select { width: 100%; padding: .4rem .5rem; border: 1px solid var(--line); border-radius: 4px; font: inherit; }
+fieldset { border: 1px solid var(--line); border-radius: 6px; padding: .5rem .75rem; }
+input[inputmode="decimal"] { width: 9rem; margin-right: .25rem; }
+.tags ul { list-style: none; margin: 0 0 .5rem; padding: 0; }
+.tags li { display: flex; gap: .5rem; align-items: center; margin-bottom: .35rem; flex-wrap: wrap; }
+.tags li input { flex: 1; }
+
+button { font: inherit; padding: .45rem 1rem; border-radius: 4px; border: 1px solid var(--ink); background: var(--ink); color: var(--paper); cursor: pointer; }
+.button-secondary { background: var(--paper); color: var(--ink); }
+.button-link { background: none; border: 0; padding: 0; color: var(--danger); text-decoration: underline; }
+
+form ul:not([data-tags-list]):not(.changes) { list-style: none; padding: .5rem .75rem; margin: 0 0 .5rem; background: #fbe9e7; color: var(--danger); border-radius: 4px; }
+.flash { margin: 0 0 .75rem; padding: .5rem .75rem; background: #e5f3ea; color: var(--ok); border-radius: 4px; }
+.badge-off { display: inline-block; margin-left: .35rem; padding: 0 .4rem; border-radius: 4px; background: #fbe9e7; color: var(--danger); font-size: .8rem; }
+
+.history-table { width: 100%; border-collapse: collapse; background: var(--paper); }
+.history-table th, .history-table td { text-align: left; vertical-align: top; padding: .4rem .5rem; border-bottom: 1px solid var(--line); }
+.changes { list-style: none; margin: 0; padding: 0; }
+del { color: var(--danger); }
+ins { color: var(--ok); text-decoration: none; }
+.filter { display: flex; gap: 1rem; align-items: end; }
+.filter > div { flex: 1; margin: 0; }
+.hint { color: var(--muted); }
